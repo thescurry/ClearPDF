@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+*.DotSettings.user
+.idea/
+*.log
+empty-bias-shot.png
+*-DEPLOY-NOTE.txt
+deploy-ux-notes.ps1

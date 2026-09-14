@@ -1,0 +1,32 @@
+<Window x:Class="ClearPDF.Views.DuckWafflesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Duck waffles"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
+        Background="Transparent"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Cursor="Hand"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        KeyDown="Window_KeyDown">
+    <!-- Sparse easter egg: click anywhere to dismiss. Asset caption: "Waffles right meow!!" -->
+    <Border Background="White"
+            BorderBrush="#B0B0B0"
+            BorderThickness="1"
+            Margin="16"
+            Padding="16"
+            CornerRadius="2">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.28" Color="Black"/>
+        </Border.Effect>
+        <Image Source="pack://application:,,,/Assets/duck-waffles.png"
+               Stretch="Uniform"
+               MaxWidth="640"
+               MaxHeight="400"
+               SnapsToDevicePixels="True"
+               RenderOptions.BitmapScalingMode="HighQuality"/>
+    </Border>
+</Window>

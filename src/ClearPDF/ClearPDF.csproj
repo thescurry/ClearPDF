@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationTitle>ClearPDF</ApplicationTitle>
+    <Product>ClearPDF</Product>
+    <Description>A simple local PDF reader for Windows 10+</Description>
+    <Version>0.1.0</Version>
+    <RootNamespace>ClearPDF</RootNamespace>
+    <AssemblyName>ClearPDF</AssemblyName>
+    <ApplicationIcon>Assets\app-icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Linux/macOS: WPF shell cannot build. Emit an empty stub so `dotnet test` on the
+       solution still succeeds; real UI build remains Windows-only. -->
+  <PropertyGroup Condition="!$([MSBuild]::IsOSPlatform('Windows'))">
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <UseWPF>false</UseWPF>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ClearPDF.Core\ClearPDF.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PDFium via Docnet.Core (managed bindings). On Windows, restore also
+         pulls platform natives when available; see README for pdfium.dll notes. -->
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+    <!-- App icon: PNG for Window.Icon (pack URI); ICO also via ApplicationIcon for exe. -->
+    <Resource Include="Assets\app-icon.png" />
+    <Resource Include="Assets\app-icon.ico" />
+    <!-- Easter egg asset (Help → Duck waffles). Embedded as WPF Resource. -->
+    <Resource Include="Assets\duck-waffles.png" />
+  </ItemGroup>
+
+  <!-- Copy win-x64 pdfium next to the exe so DocLib finds it without RID probing quirks. -->
+  <Target Name="CopyPdfiumNative" AfterTargets="Build" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <PropertyGroup>
+      <_PdfiumSrc>$(OutputPath)runtimes\win-x64\native\pdfium.dll</_PdfiumSrc>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_PdfiumSrc)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="Exists('$(_PdfiumSrc)')" />
+  </Target>
+
+</Project>
