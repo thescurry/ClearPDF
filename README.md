@@ -4,6 +4,17 @@ Simple local PDF reader for **Windows 10+**. WPF · .NET 8 · no ribbons, AI, or
 
 UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal.
 
+## Download (Windows)
+
+Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)**:
+
+1. Download `ClearPDF-Setup.exe`
+2. Run it (SmartScreen may show **Unknown publisher** once — More info → Run anyway; the build is unsigned)
+3. Optional: check “Set ClearPDF as default for .pdf”
+
+Self-contained ~166 MB on disk after install. No .NET install required.
+
+
 ## Engine choice
 
 **Docnet.Core** (NuGet) — managed PDFium bindings. Chosen over PdfiumViewer because it targets modern .NET, restores cleanly with `net8.0-windows`, and keeps the app on a thin WPF shell instead of WinForms hosts.
