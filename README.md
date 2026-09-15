@@ -135,11 +135,11 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 
 | Screen | Mock | Code |
 |--------|------|------|
-| Empty + Recent | `docs/mocks/01-empty-open.png` | `EmptyView` in `MainWindow.xaml` |
-| Reader | `docs/mocks/02-reader.png` | `ReaderView` + thin toolbar + status bar |
+| Empty + Recent | `docs/mocks/chrome-arc-empty.png` (v1.1) / `01-empty-open.png` | `EmptyView` in `MainWindow.xaml` |
+| Reader | `docs/mocks/chrome-arc-reader.png` (v1.1) / `02-reader.png` | `ReaderView` + one icon toolbar + status bar |
 | Password | `docs/mocks/03-password.png` | `Views/PasswordDialog.xaml` |
 
-Accent: `#5A7FA6` (one muted blue — selected thumb + find hit). Canvas: `#E8EAEE` (softer gray so the white page pops). Toolbar: icon-first, labels on hover. No ribbons.
+Accent: `#5A7FA6` (one muted blue — selected thumb + find hit). Canvas: `#F1F2F7` (sampled from `chrome-arc-reader.png` so the white page pops). Toolbar: one ~36px icon strip (Segoe MDL2), labels on hover. No ribbons.
 
 ## Project tree
 

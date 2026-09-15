@@ -54,7 +54,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _thumbCts;
     private int _thumbGeneration;
 
-    private const double ScrollerPadding = 20;
+    private const double ScrollerPadding = 28;
 
     public MainWindow()
     {
@@ -205,6 +205,7 @@ public partial class MainWindow : Window
 
         EmptyView.Visibility = Visibility.Collapsed;
         ReaderView.Visibility = Visibility.Visible;
+        AppMenu.Visibility = Visibility.Collapsed;
         ToolbarBorder.Visibility = Visibility.Visible;
         StatusBar.Visibility = Visibility.Visible;
         Title = $"ClearPDF — {Path.GetFileName(path)}";
@@ -259,15 +260,15 @@ public partial class MainWindow : Window
             {
                 Background = Brushes.White,
                 BorderBrush = Brushes.Transparent,
-                BorderThickness = new Thickness(2),
-                Margin = new Thickness(0, 0, 0, 16),
+                BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 0, 20),
                 Width = displayW,
                 Height = displayH,
                 Effect = new DropShadowEffect
                 {
-                    BlurRadius = 12,
-                    ShadowDepth = 2,
-                    Opacity = 0.22,
+                    BlurRadius = 8,
+                    ShadowDepth = 1,
+                    Opacity = 0.10,
                     Color = Colors.Black
                 },
                 Child = image,

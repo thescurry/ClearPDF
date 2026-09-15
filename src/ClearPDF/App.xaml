@@ -3,23 +3,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- v1.1 polish tokens (Graphics Arc): softer canvas, one muted accent -->
+        <!-- v1.1 polish tokens — sampled from docs/mocks/chrome-arc-*.png
+             Canvas #F1F2F7 (Arc page surround). Accent muted #5A7FA6
+             (one stroke for selected thumb + find hit; not Arc's bright pill). -->
         <Color x:Key="AccentColor">#5A7FA6</Color>
         <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
-        <SolidColorBrush x:Key="CanvasBrush" Color="#E8EAEE"/>
-        <SolidColorBrush x:Key="RailBrush" Color="#E4E6EC"/>
+        <SolidColorBrush x:Key="CanvasBrush" Color="#F1F2F7"/>
+        <SolidColorBrush x:Key="RailBrush" Color="#F4F5F8"/>
         <SolidColorBrush x:Key="ToolbarBrush" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="BorderMutedBrush" Color="#D0D0D0"/>
+        <SolidColorBrush x:Key="BorderMutedBrush" Color="#D8D9DE"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#222222"/>
-        <SolidColorBrush x:Key="TextMutedBrush" Color="#888888"/>
-        <SolidColorBrush x:Key="StatusBarBrush" Color="#E2E3E8"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#8A8A92"/>
+        <SolidColorBrush x:Key="StatusBarBrush" Color="#F1F2F7"/>
+        <SolidColorBrush x:Key="IconBrush" Color="#3A3A42"/>
 
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="7,4"/>
+            <Setter Property="Padding" Value="8,5"/>
             <Setter Property="Margin" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource IconBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -47,9 +50,18 @@
             </Setter>
         </Style>
 
+        <!-- Segoe MDL2 line icons (Win10+) — Arc pack is icon-first, not emoji. -->
+        <Style x:Key="ToolbarIcon" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource IconBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
         <Style x:Key="OpenHeroButton" TargetType="Button">
             <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#AAAAAA"/>
+            <Setter Property="BorderBrush" Value="#B4B6BC"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="28,8"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -64,7 +76,7 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 Padding="{TemplateBinding Padding}"
-                                CornerRadius="2">
+                                CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
