@@ -91,7 +91,7 @@ public static class PdfPageExtract
     /// </summary>
     public static string SuggestFileName(string? sourcePath, IReadOnlyList<int> pages0)
     {
-        var stem = Path.GetFileNameWithoutExtension(sourcePath ?? string.Empty);
+        var stem = FileStem(sourcePath);
         if (string.IsNullOrWhiteSpace(stem))
             stem = "document";
 
@@ -111,5 +111,23 @@ public static class PdfPageExtract
             return $"{stem}-pages-{string.Join("-", pages0.Select(p => p + 1))}.pdf";
 
         return $"{stem}-pages-{first}-x{pages0.Count}.pdf";
+    }
+
+    /// <summary>
+    /// Stem of a Windows or Unix path. <see cref="Path.GetFileName"/> on Linux
+    /// treats <c>\</c> as a legal name character, so <c>C:\docs\a.pdf</c>
+    /// would otherwise leak the drive prefix into the suggested name.
+    /// </summary>
+    internal static string FileStem(string? sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+            return string.Empty;
+
+        var name = sourcePath.Replace('\\', '/');
+        var slash = name.LastIndexOf('/');
+        if (slash >= 0)
+            name = name[(slash + 1)..];
+
+        return Path.GetFileNameWithoutExtension(name);
     }
 }
