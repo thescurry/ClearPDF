@@ -16,9 +16,10 @@ Layout notes: empty column is **520** wide (was 300 with a 320-wide Recent list,
 
 Ship version stays **1.1.0** until Chip’s bump. Graphics mocks: `docs/mocks/v12-01-multiselect.png`, `v12-02-context-menu.png`, `v12-03-save-as-choice.png`.
 
-- One accent `#5A7FA6`. Selected thumb border is primary; **checks only on selected thumbs**.
-- Tiny **2-line** thumb context menu: Save pages as… / Print selected.
-- Save As with multi-select: quiet one-line **Selected pages | Whole document** — no modal sprawl.
+- One accent `#5A7FA6`. Selected thumb **border** is primary; gray page index; **checks only on selected thumbs** (beside the number, not a second fill on the page).
+- Tiny **2-line** thumb context menu: Save pages as... / Print selected.
+- Save As with multi-select: quiet in-window card — radios **Selected pages (n) | Entire document**, Cancel + accent Save. No title-bar modal sprawl.
+- Steal notes: [`docs/mocks/v12-STEAL.md`](mocks/v12-STEAL.md).
 - Empty Recent gate above is unchanged (MaxEntries=12, no leading clip, accent Open pill).
 
 ## Deferred (later 1.1.x)

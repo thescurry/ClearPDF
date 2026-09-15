@@ -53,6 +53,9 @@ public partial class MainWindow : Window
     /// <summary>Thumbnail Image controls — filled by a pipeline separate from main pages.</summary>
     private Image[] _thumbImages = Array.Empty<Image>();
 
+    /// <summary>Check marks beside the page number — visible only when selected.</summary>
+    private TextBlock[] _thumbChecks = Array.Empty<TextBlock>();
+
     /// <summary>Thumb-only cancel/gen — page CancelRenders must not abort thumb fills.</summary>
     private CancellationTokenSource? _thumbCts;
     private int _thumbGeneration;
@@ -345,6 +348,7 @@ public partial class MainWindow : Window
         _selectedThumbs.Clear();
         _thumbFrames = new Border[_doc.PageCount];
         _thumbImages = new Image[_doc.PageCount];
+        _thumbChecks = new TextBlock[_doc.PageCount];
 
         for (var i = 0; i < _doc.PageCount; i++)
         {
@@ -368,33 +372,43 @@ public partial class MainWindow : Window
             _thumbImages[i] = image;
 
             var selected = _selection.Contains(i);
+            // Border wraps the page only — selected stroke is the primary signal.
             var frame = new Border
             {
                 BorderThickness = new Thickness(2),
                 BorderBrush = ThumbBorderBrush(selected),
-                Margin = new Thickness(0, 0, 0, ThumbRowGapPx),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Background = Brushes.White,
+                Child = image,
+                Tag = pageIndex
+            };
+
+            var check = CreateThumbCheck(selected);
+            _thumbChecks[i] = check;
+
+            var caption = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(2, 4, 0, 0)
+            };
+            caption.Children.Add(CreateThumbBadge(i));
+            caption.Children.Add(check);
+
+            var row = new StackPanel
+            {
+                Margin = new Thickness(0, 0, 0, ThumbRowGapPx),
                 Cursor = Cursors.Hand,
-                Child = new Grid
-                {
-                    Width = ThumbWidthPx,
-                    Height = thumbHeight,
-                    Children =
-                    {
-                        image,
-                        CreateThumbBadge(i, selected),
-                        CreateThumbCheck(selected)
-                    }
-                },
                 Tag = pageIndex,
                 ContextMenu = ThumbContextMenu()
             };
+            row.Children.Add(frame);
+            row.Children.Add(caption);
+            row.MouseLeftButtonUp += (_, e) => OnThumbLeftUp(pageIndex, e);
+            row.PreviewMouseRightButtonDown += (_, _) => OnThumbRightDown(pageIndex);
 
-            frame.MouseLeftButtonUp += (_, e) => OnThumbLeftUp(pageIndex, e);
-            frame.PreviewMouseRightButtonDown += (_, _) => OnThumbRightDown(pageIndex);
             _thumbFrames[i] = frame;
-            ThumbnailList.Items.Add(frame);
+            ThumbnailList.Items.Add(row);
             if (selected)
                 _selectedThumbs.Add(i);
         }
@@ -477,18 +491,15 @@ public partial class MainWindow : Window
         _thumbCts = new CancellationTokenSource();
     }
 
-    private Border CreateThumbBadge(int pageIndex, bool selected)
+    /// <summary>Gray page index — never a second accent fill. Border carries selection.</summary>
+    private Border CreateThumbBadge(int pageIndex)
     {
         return new Border
         {
             Width = 18,
             Height = 18,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(4),
-            Background = selected
-                ? (Brush)FindResource("AccentBrush")
-                : new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
+            CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
             Child = new TextBlock
             {
                 Text = (pageIndex + 1).ToString(),
@@ -496,34 +507,22 @@ public partial class MainWindow : Window
                 FontSize = 10,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
-            },
-            Tag = "badge"
+            }
         };
     }
 
-    /// <summary>Check only on selected thumbs — same muted accent, no second color.</summary>
-    private Border CreateThumbCheck(bool selected)
+    /// <summary>Accent check beside the number — only when the thumb is selected.</summary>
+    private TextBlock CreateThumbCheck(bool selected)
     {
-        return new Border
+        return new TextBlock
         {
-            Width = 16,
-            Height = 16,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(3),
-            CornerRadius = new CornerRadius(8),
-            Background = (Brush)FindResource("AccentBrush"),
-            Visibility = selected ? Visibility.Visible : Visibility.Collapsed,
-            Child = new TextBlock
-            {
-                Text = "\uE73E",
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                FontSize = 10,
-                Foreground = Brushes.White,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            },
-            Tag = "check"
+            Text = "\uE73E",
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 11,
+            Foreground = (Brush)FindResource("AccentBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(6, 0, 0, 0),
+            Visibility = selected ? Visibility.Visible : Visibility.Collapsed
         };
     }
 
@@ -532,11 +531,22 @@ public partial class MainWindow : Window
         if (_thumbContextMenu != null)
             return _thumbContextMenu;
 
-        var save = new MenuItem { Header = "Save pages as…" };
+        var save = new MenuItem
+        {
+            Header = "Save pages as...",
+            Style = (Style)FindResource("TinyMenuItem")
+        };
         save.Click += SavePagesAs_Click;
-        var print = new MenuItem { Header = "Print selected" };
+        var print = new MenuItem
+        {
+            Header = "Print selected",
+            Style = (Style)FindResource("TinyMenuItem")
+        };
         print.Click += Print_Click;
-        _thumbContextMenu = new ContextMenu();
+        _thumbContextMenu = new ContextMenu
+        {
+            Style = (Style)FindResource("TinyThumbMenu")
+        };
         _thumbContextMenu.Items.Add(save);
         _thumbContextMenu.Items.Add(print);
         return _thumbContextMenu;
@@ -616,21 +626,8 @@ public partial class MainWindow : Window
     private void ApplyThumbChrome(int index, bool selected)
     {
         _thumbFrames[index].BorderBrush = ThumbBorderBrush(selected);
-        if (_thumbFrames[index].Child is not Grid grid)
-            return;
-        foreach (var child in grid.Children)
-        {
-            if (child is Border { Tag: "badge" } badge)
-            {
-                badge.Background = selected
-                    ? (Brush)FindResource("AccentBrush")
-                    : new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
-            }
-            else if (child is Border { Tag: "check" } check)
-            {
-                check.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
-            }
-        }
+        if (index >= 0 && index < _thumbChecks.Length)
+            _thumbChecks[index].Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void GoToPage(int pageIndex, bool syncSingleSelection = true)
@@ -1000,8 +997,9 @@ public partial class MainWindow : Window
 
         if (PdfPageExtract.ShouldOfferSaveAsChoice(_selection.Count))
         {
-            SaveAsSelectedChoice.Content = $"Selected pages ({_selection.Count})";
-            SaveAsChoiceBar.Visibility = Visibility.Visible;
+            SaveAsSelectedRadio.Content = $"Selected pages ({_selection.Count})";
+            SaveAsSelectedRadio.IsChecked = true;
+            SaveAsChoiceOverlay.Visibility = Visibility.Visible;
             return;
         }
 
@@ -1009,17 +1007,22 @@ public partial class MainWindow : Window
         SaveWholeDocument();
     }
 
-    private void SaveAsChoiceSelected_Click(object sender, RoutedEventArgs e)
+    private void SaveAsChoiceSave_Click(object sender, RoutedEventArgs e)
     {
+        var selected = SaveAsSelectedRadio.IsChecked == true;
         HideSaveAsChoice();
-        SaveSelectedPages();
+        if (selected)
+            SaveSelectedPages();
+        else
+            SaveWholeDocument();
     }
 
-    private void SaveAsChoiceWhole_Click(object sender, RoutedEventArgs e)
-    {
-        HideSaveAsChoice();
-        SaveWholeDocument();
-    }
+    private void SaveAsChoiceCancel_Click(object sender, RoutedEventArgs e) => HideSaveAsChoice();
+
+    private void SaveAsChoiceDim_MouseDown(object sender, MouseButtonEventArgs e) => HideSaveAsChoice();
+
+    private void SaveAsChoiceCard_MouseDown(object sender, MouseButtonEventArgs e) =>
+        e.Handled = true;
 
     private void SavePagesAs_Click(object sender, RoutedEventArgs e)
     {
@@ -1029,8 +1032,8 @@ public partial class MainWindow : Window
 
     private void HideSaveAsChoice()
     {
-        if (SaveAsChoiceBar != null)
-            SaveAsChoiceBar.Visibility = Visibility.Collapsed;
+        if (SaveAsChoiceOverlay != null)
+            SaveAsChoiceOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void SaveWholeDocument()
@@ -1163,7 +1166,7 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && SaveAsChoiceBar.Visibility == Visibility.Visible)
+        if (e.Key == Key.Escape && SaveAsChoiceOverlay.Visibility == Visibility.Visible)
         {
             HideSaveAsChoice();
             e.Handled = true;

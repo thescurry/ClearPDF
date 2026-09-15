@@ -113,7 +113,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Zoom in/out, fit width, fit page
 - Find next/prev (extracted text)
 - Print, Save As (copy file)
-- **v1.2 page-selection** (ship version stays 1.1.0 until Chip’s checklist): multi-select thumbs (click / Ctrl-toggle / Shift-range, accent `#5A7FA6` + check on selected only); **Save pages as…** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF of the selected pages via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet one-line **Selected pages | Whole document** choice (no modal)
+- **v1.2 page-selection** (ship version stays 1.1.0 until Chip’s checklist): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
 - Password prompt for encrypted PDFs (unlock for viewing only)
 - Error banner UI
 - Bookmarks/outline when the engine exposes them (stubbed TODO if Docnet has no outline API)

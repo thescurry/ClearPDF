@@ -101,29 +101,6 @@
             </DockPanel>
         </Border>
 
-        <!-- Quiet one-line Save As choice (selected vs whole) — no modal. -->
-        <Border x:Name="SaveAsChoiceBar" DockPanel.Dock="Top"
-                Background="White"
-                BorderBrush="{StaticResource BorderMutedBrush}"
-                BorderThickness="0,0,0,1"
-                Padding="16,5"
-                Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Save as"
-                           FontSize="12"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,0"/>
-                <Button x:Name="SaveAsSelectedChoice" Style="{StaticResource QuietChoiceLink}"
-                        Content="Selected pages" Click="SaveAsChoiceSelected_Click"/>
-                <TextBlock Text="|" FontSize="12"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           VerticalAlignment="Center" Margin="10,0"/>
-                <Button Style="{StaticResource QuietChoiceLink}"
-                        Content="Whole document" Click="SaveAsChoiceWhole_Click"/>
-            </StackPanel>
-        </Border>
-
         <!-- Status bar (mock 02) -->
         <Border x:Name="StatusBar" DockPanel.Dock="Bottom"
                 Background="{StaticResource StatusBarBrush}"
@@ -261,6 +238,43 @@
                           ScrollChanged="PageScroller_ScrollChanged">
                 <StackPanel x:Name="PageHost" HorizontalAlignment="Center"/>
             </ScrollViewer>
+        </Grid>
+
+        <!-- v12-03: quiet Save as card — compact radios, no title-bar modal. -->
+        <Grid x:Name="SaveAsChoiceOverlay" Visibility="Collapsed">
+            <Border Background="#40000000" MouseLeftButtonDown="SaveAsChoiceDim_MouseDown"/>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="White" CornerRadius="8" Padding="28,24"
+                    BorderBrush="#E0E0E0" BorderThickness="1" MinWidth="360"
+                    MouseLeftButtonDown="SaveAsChoiceCard_MouseDown">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.22" Color="#000000"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Save as"
+                               FontFamily="Segoe UI" FontSize="18" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Margin="0,0,0,18"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,22">
+                        <RadioButton x:Name="SaveAsSelectedRadio" Style="{StaticResource QuietRadio}"
+                                     Content="Selected pages" GroupName="SaveAsChoice"
+                                     IsChecked="True" Margin="0,0,24,0"/>
+                        <RadioButton x:Name="SaveAsWholeRadio" Style="{StaticResource QuietRadio}"
+                                     Content="Entire document" GroupName="SaveAsChoice"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,8,0" Click="SaveAsChoiceCancel_Click"/>
+                        <Button Style="{StaticResource PrimaryButton}" Click="SaveAsChoiceSave_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74E;"
+                                           FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Save" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Grid>
         </Grid>
     </DockPanel>
