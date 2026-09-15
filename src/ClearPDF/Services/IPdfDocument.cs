@@ -26,6 +26,12 @@ public interface IPdfDocument : IDisposable
     string GetPageText(int pageIndex);
 
     IReadOnlyList<BookmarkItem> GetBookmarks();
+
+    /// <summary>
+    /// Write a new PDF of the given 0-based pages (page extract, not an edit
+    /// of the open file). Throws if natives are missing or the set is empty.
+    /// </summary>
+    void ExtractPages(IReadOnlyList<int> pageIndices0, string destPath);
 }
 
 public interface IPdfDocumentFactory

@@ -134,6 +134,27 @@ internal sealed class DocnetPdfDocument : IPdfDocument
         return Array.Empty<BookmarkItem>();
     }
 
+    public void ExtractPages(IReadOnlyList<int> pageIndices0, string destPath)
+    {
+        EnsureNotDisposed();
+        var pages = PdfPageExtract.Normalize(pageIndices0, PageCount);
+        if (pages.Count == 0)
+            throw new PdfOpenException("No pages to extract.");
+        if (string.IsNullOrWhiteSpace(destPath))
+            throw new PdfOpenException("Save path is empty.");
+
+        var range = PdfPageExtract.ToDocnetPageRange(pages);
+        byte[] bytes;
+        lock (DocnetGate)
+        {
+            EnsureNotDisposed();
+            // 1-based range over unlocked in-memory bytes (password never retained).
+            bytes = DocLib.Instance.Split(_pdfBytes, range);
+        }
+
+        File.WriteAllBytes(destPath, bytes);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -219,6 +240,9 @@ internal sealed class StubPdfDocument : IPdfDocument
             : string.Empty;
 
     public IReadOnlyList<BookmarkItem> GetBookmarks() => Array.Empty<BookmarkItem>();
+
+    public void ExtractPages(IReadOnlyList<int> pageIndices0, string destPath) =>
+        throw new PdfOpenException("PDFium natives not loaded — cannot extract pages.");
 
     public void Dispose() { }
 }

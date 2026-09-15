@@ -12,6 +12,15 @@ Layout notes: empty column is **520** wide (was 300 with a 320-wide Recent list,
 
 `RecentFilesService.MaxEntries` stays **12**. Unit test: add 13 unique paths → `Load().Count == 12` (oldest dropped).
 
+## v1.2 page-selection chrome (does not replace the empty-state gate)
+
+Ship version stays **1.1.0** until Chip’s bump. Graphics mocks: `docs/mocks/v12-01-multiselect.png`, `v12-02-context-menu.png`, `v12-03-save-as-choice.png`.
+
+- One accent `#5A7FA6`. Selected thumb border is primary; **checks only on selected thumbs**.
+- Tiny **2-line** thumb context menu: Save pages as… / Print selected.
+- Save As with multi-select: quiet one-line **Selected pages | Whole document** — no modal sprawl.
+- Empty Recent gate above is unchanged (MaxEntries=12, no leading clip, accent Open pill).
+
 ## Deferred (later 1.1.x)
 
 Do **not** build the first-open Welcome card from `docs/mocks/chrome-arc-intro.png` in this pass. Empty-state stays Open + Recent. Track Welcome for a later 1.1.x note.

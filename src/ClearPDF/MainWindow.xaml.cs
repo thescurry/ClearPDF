@@ -46,6 +46,9 @@ public partial class MainWindow : Window
     private bool _pageTopsDirty = true;
     private int _highlightedThumb = -1;
     private int _findHitPage = -1;
+    private PageSet _selection = PageSet.Empty;
+    private readonly HashSet<int> _selectedThumbs = new();
+    private ContextMenu? _thumbContextMenu;
 
     /// <summary>Thumbnail Image controls — filled by a pipeline separate from main pages.</summary>
     private Image[] _thumbImages = Array.Empty<Image>();
@@ -195,6 +198,8 @@ public partial class MainWindow : Window
         _bitmapCache.Clear();
         _findHitPage = -1;
         _highlightedThumb = -1;
+        _selectedThumbs.Clear();
+        HideSaveAsChoice();
         InvalidatePageTops();
         _doc?.Dispose();
         _doc = doc;
@@ -203,6 +208,7 @@ public partial class MainWindow : Window
         _findHits = Array.Empty<FindHelper.Hit>();
         _findIndex = -1;
         _thumbsBuilt = false;
+        _selection = PageSelection.Click(0, doc.PageCount);
         FindPanel.Visibility = Visibility.Collapsed;
 
         _pageTexts = new string[doc.PageCount];
@@ -336,6 +342,7 @@ public partial class MainWindow : Window
             return;
 
         ThumbnailList.Items.Clear();
+        _selectedThumbs.Clear();
         _thumbFrames = new Border[_doc.PageCount];
         _thumbImages = new Image[_doc.PageCount];
 
@@ -360,10 +367,11 @@ public partial class MainWindow : Window
             };
             _thumbImages[i] = image;
 
+            var selected = _selection.Contains(i);
             var frame = new Border
             {
                 BorderThickness = new Thickness(2),
-                BorderBrush = ThumbBorderBrush(i == _currentPage),
+                BorderBrush = ThumbBorderBrush(selected),
                 Margin = new Thickness(0, 0, 0, ThumbRowGapPx),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Background = Brushes.White,
@@ -375,15 +383,20 @@ public partial class MainWindow : Window
                     Children =
                     {
                         image,
-                        CreateThumbBadge(i, i == _currentPage)
+                        CreateThumbBadge(i, selected),
+                        CreateThumbCheck(selected)
                     }
                 },
-                Tag = pageIndex
+                Tag = pageIndex,
+                ContextMenu = ThumbContextMenu()
             };
 
-            frame.MouseLeftButtonUp += (_, _) => GoToPage(pageIndex);
+            frame.MouseLeftButtonUp += (_, e) => OnThumbLeftUp(pageIndex, e);
+            frame.PreviewMouseRightButtonDown += (_, _) => OnThumbRightDown(pageIndex);
             _thumbFrames[i] = frame;
             ThumbnailList.Items.Add(frame);
+            if (selected)
+                _selectedThumbs.Add(i);
         }
 
         _thumbsBuilt = true;
@@ -488,28 +501,116 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>Check only on selected thumbs — same muted accent, no second color.</summary>
+    private Border CreateThumbCheck(bool selected)
+    {
+        return new Border
+        {
+            Width = 16,
+            Height = 16,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(3),
+            CornerRadius = new CornerRadius(8),
+            Background = (Brush)FindResource("AccentBrush"),
+            Visibility = selected ? Visibility.Visible : Visibility.Collapsed,
+            Child = new TextBlock
+            {
+                Text = "\uE73E",
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 10,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            },
+            Tag = "check"
+        };
+    }
+
+    private ContextMenu ThumbContextMenu()
+    {
+        if (_thumbContextMenu != null)
+            return _thumbContextMenu;
+
+        var save = new MenuItem { Header = "Save pages as…" };
+        save.Click += SavePagesAs_Click;
+        var print = new MenuItem { Header = "Print selected" };
+        print.Click += Print_Click;
+        _thumbContextMenu = new ContextMenu();
+        _thumbContextMenu.Items.Add(save);
+        _thumbContextMenu.Items.Add(print);
+        return _thumbContextMenu;
+    }
+
+    private void OnThumbLeftUp(int pageIndex, MouseButtonEventArgs e)
+    {
+        if (_doc == null)
+            return;
+
+        var mods = Keyboard.Modifiers;
+        if ((mods & ModifierKeys.Shift) == ModifierKeys.Shift)
+            _selection = PageSelection.Range(_selection.Anchor, pageIndex, _doc.PageCount);
+        else if ((mods & ModifierKeys.Control) == ModifierKeys.Control)
+            _selection = PageSelection.Toggle(_selection, pageIndex, _doc.PageCount);
+        else
+            _selection = PageSelection.Click(pageIndex, _doc.PageCount);
+
+        RefreshThumbSelection();
+        HideSaveAsChoice();
+        GoToPage(pageIndex, syncSingleSelection: false);
+        e.Handled = true;
+    }
+
+    private void OnThumbRightDown(int pageIndex)
+    {
+        if (_doc == null)
+            return;
+        if (!_selection.Contains(pageIndex))
+        {
+            _selection = PageSelection.Click(pageIndex, _doc.PageCount);
+            RefreshThumbSelection();
+            UpdateStatus();
+        }
+    }
+
     private Brush ThumbBorderBrush(bool selected) =>
         selected
             ? (Brush)FindResource("AccentBrush")
             : new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC));
 
-    /// <summary>Update selection chrome only — no Docnet calls, no full-rail walk.</summary>
-    private void HighlightCurrentThumbnail()
+    /// <summary>Update selection chrome only — no Docnet calls. Diffs the set.</summary>
+    private void HighlightCurrentThumbnail() => RefreshThumbSelection();
+
+    private void RefreshThumbSelection()
     {
         if (!_thumbsBuilt || _thumbFrames.Length == 0)
             return;
 
-        if (_highlightedThumb >= 0 &&
-            _highlightedThumb < _thumbFrames.Length &&
-            _highlightedThumb != _currentPage)
+        var next = new HashSet<int>();
+        foreach (var p in _selection.Pages)
         {
-            ApplyThumbChrome(_highlightedThumb, selected: false);
+            if (p >= 0 && p < _thumbFrames.Length)
+                next.Add(p);
         }
 
-        if (_currentPage >= 0 && _currentPage < _thumbFrames.Length)
-            ApplyThumbChrome(_currentPage, selected: true);
+        foreach (var i in _selectedThumbs)
+        {
+            if (!next.Contains(i) && i >= 0 && i < _thumbFrames.Length)
+                ApplyThumbChrome(i, selected: false);
+        }
+
+        foreach (var i in next)
+        {
+            if (!_selectedThumbs.Contains(i))
+                ApplyThumbChrome(i, selected: true);
+        }
+
+        _selectedThumbs.Clear();
+        foreach (var i in next)
+            _selectedThumbs.Add(i);
 
         _highlightedThumb = _currentPage;
+        UpdatePrintTooltip();
     }
 
     private void ApplyThumbChrome(int index, bool selected)
@@ -525,16 +626,25 @@ public partial class MainWindow : Window
                     ? (Brush)FindResource("AccentBrush")
                     : new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
             }
+            else if (child is Border { Tag: "check" } check)
+            {
+                check.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
     }
 
-    private void GoToPage(int pageIndex)
+    private void GoToPage(int pageIndex, bool syncSingleSelection = true)
     {
         if (_doc == null || pageIndex < 0 || pageIndex >= _doc.PageCount)
             return;
 
         _currentPage = pageIndex;
-        HighlightCurrentThumbnail();
+        if (syncSingleSelection && !PageSelection.IsMulti(_selection))
+        {
+            _selection = PageSelection.FollowCurrent(pageIndex, _doc.PageCount);
+            RefreshThumbSelection();
+        }
+
         UpdateStatus();
 
         if (pageIndex < PageHost.Children.Count && PageHost.Children[pageIndex] is FrameworkElement el)
@@ -547,10 +657,25 @@ public partial class MainWindow : Window
     private void UpdateStatus()
     {
         var count = _doc?.PageCount ?? 0;
-        PageStatusText.Text = count == 0 ? "—" : $"{_currentPage + 1} / {count}";
+        if (count == 0)
+            PageStatusText.Text = "—";
+        else if (PageSelection.IsMulti(_selection))
+            PageStatusText.Text = $"{_currentPage + 1} / {count}  ·  {_selection.Count} selected";
+        else
+            PageStatusText.Text = $"{_currentPage + 1} / {count}";
         var pct = $"{(int)Math.Round(_zoom * 100)}%";
         ZoomLabel.Content = pct;
         ZoomStatusText.Text = pct;
+        UpdatePrintTooltip();
+    }
+
+    private void UpdatePrintTooltip()
+    {
+        if (PrintButton == null)
+            return;
+        PrintButton.ToolTip = PageSelection.IsMulti(_selection)
+            ? $"Print selected pages ({_selection.Count}) (Ctrl+P)"
+            : "Print (Ctrl+P)";
     }
 
     private void ApplyZoom(double zoom)
@@ -873,6 +998,46 @@ public partial class MainWindow : Window
         if (_doc == null)
             return;
 
+        if (PdfPageExtract.ShouldOfferSaveAsChoice(_selection.Count))
+        {
+            SaveAsSelectedChoice.Content = $"Selected pages ({_selection.Count})";
+            SaveAsChoiceBar.Visibility = Visibility.Visible;
+            return;
+        }
+
+        HideSaveAsChoice();
+        SaveWholeDocument();
+    }
+
+    private void SaveAsChoiceSelected_Click(object sender, RoutedEventArgs e)
+    {
+        HideSaveAsChoice();
+        SaveSelectedPages();
+    }
+
+    private void SaveAsChoiceWhole_Click(object sender, RoutedEventArgs e)
+    {
+        HideSaveAsChoice();
+        SaveWholeDocument();
+    }
+
+    private void SavePagesAs_Click(object sender, RoutedEventArgs e)
+    {
+        HideSaveAsChoice();
+        SaveSelectedPages();
+    }
+
+    private void HideSaveAsChoice()
+    {
+        if (SaveAsChoiceBar != null)
+            SaveAsChoiceBar.Visibility = Visibility.Collapsed;
+    }
+
+    private void SaveWholeDocument()
+    {
+        if (_doc == null)
+            return;
+
         var dlg = new SaveFileDialog
         {
             Title = "Save As",
@@ -892,14 +1057,44 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SaveSelectedPages()
+    {
+        if (_doc == null)
+            return;
+
+        var pages = PdfPageExtract.PagesForExtract(_selection.Pages, _currentPage, _doc.PageCount);
+        if (pages.Count == 0)
+            return;
+
+        var dlg = new SaveFileDialog
+        {
+            Title = "Save pages as…",
+            Filter = "PDF files (*.pdf)|*.pdf",
+            FileName = PdfPageExtract.SuggestFileName(_doc.FilePath, pages)
+        };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            _doc.ExtractPages(pages, dlg.FileName);
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Save pages as… failed: {ex.Message}");
+        }
+    }
+
     private void Print_Click(object sender, RoutedEventArgs e)
     {
         if (_doc == null)
             return;
 
+        HideSaveAsChoice();
+
         try
         {
-            // Enable Pages (from–to) and Selection (= current highlighted thumb page).
+            // Pages (from–to) + Selection. Size 1 ≈ current page; multi = thumb set.
             var dlg = new PrintDialog
             {
                 UserPageRangeEnabled = true,
@@ -907,23 +1102,29 @@ public partial class MainWindow : Window
                 MinPage = 1,
                 MaxPage = (uint)Math.Max(1, _doc.PageCount),
             };
+
+            var (from1, to1) = PrintPageRange.DialogPageRange(
+                _selection.Pages, _currentPage, _doc.PageCount);
+            dlg.PageRange = new PageRange(from1, to1);
+            if (PageSelection.IsMulti(_selection))
+                dlg.PageRangeSelection = PageRangeSelection.SelectedPages;
+
             if (dlg.ShowDialog() != true)
                 return;
 
             // PrintDialog.PrintDocument does not apply PageRange itself — map into paginator.
-            // Selection = current left-rail / viewer page (PrintPageRange).
             var mode = dlg.PageRangeSelection switch
             {
                 PageRangeSelection.SelectedPages => PrintRangeMode.Selection,
                 PageRangeSelection.UserPages => PrintRangeMode.UserPages,
                 _ => PrintRangeMode.AllPages
             };
-            var (startPage, endPage) = PrintPageRange.Resolve(
-                mode, _currentPage, _doc.PageCount,
+            var pages = PrintPageRange.ResolvePages(
+                mode, _currentPage, _doc.PageCount, _selection.Pages,
                 dlg.PageRange.PageFrom, dlg.PageRange.PageTo);
 
             var paginator = new PdfPrintPaginator(
-                _doc, dlg.PrintableAreaWidth, dlg.PrintableAreaHeight, startPage, endPage);
+                _doc, dlg.PrintableAreaWidth, dlg.PrintableAreaHeight, pages);
             dlg.PrintDocument(paginator, Path.GetFileName(_doc.FilePath));
         }
         catch (Exception ex)
@@ -947,8 +1148,14 @@ public partial class MainWindow : Window
         if (best != _currentPage)
         {
             _currentPage = best;
-            // Selection chrome only — do NOT rebuild thumbnails or cancel in-window rasters.
-            HighlightCurrentThumbnail();
+            // Size 1: keep today's "highlight follows viewer page".
+            // Multi-select: leave the set; only status/current page move.
+            if (!PageSelection.IsMulti(_selection))
+            {
+                _selection = PageSelection.FollowCurrent(best, _doc.PageCount);
+                HighlightCurrentThumbnail();
+            }
+
             UpdateStatus();
             ScheduleDebouncedScrollRender();
         }
@@ -956,7 +1163,12 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.O)
+        if (e.Key == Key.Escape && SaveAsChoiceBar.Visibility == Visibility.Visible)
+        {
+            HideSaveAsChoice();
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.O)
         {
             OpenWithDialog();
             e.Handled = true;
@@ -1007,26 +1219,22 @@ public partial class MainWindow : Window
 }
 
 /// <summary>Simple one-page-per-sheet print path using rendered bitmaps.
-/// Optional [_startPage, _endPage] (0-based inclusive) limits which PDF pages are printed.</summary>
+/// <paramref name="pages"/> is the 0-based PDF page list (may be non-contiguous).</summary>
 internal sealed class PdfPrintPaginator : System.Windows.Documents.DocumentPaginator
 {
     private readonly IPdfDocument _doc;
     private readonly Size _pageSize;
-    private readonly int _startPage;
-    private readonly int _endPage;
+    private readonly IReadOnlyList<int> _pages;
 
-    public PdfPrintPaginator(IPdfDocument doc, double width, double height, int startPage = 0, int endPage = -1)
+    public PdfPrintPaginator(IPdfDocument doc, double width, double height, IReadOnlyList<int> pages)
     {
         _doc = doc;
         _pageSize = new Size(width, height);
-        _startPage = Math.Clamp(startPage, 0, Math.Max(0, doc.PageCount - 1));
-        _endPage = endPage < 0
-            ? doc.PageCount - 1
-            : Math.Clamp(endPage, _startPage, Math.Max(0, doc.PageCount - 1));
+        _pages = pages ?? Array.Empty<int>();
     }
 
     public override bool IsPageCountValid => true;
-    public override int PageCount => _doc.PageCount == 0 ? 0 : _endPage - _startPage + 1;
+    public override int PageCount => _pages.Count;
     public override Size PageSize
     {
         get => _pageSize;
@@ -1037,8 +1245,7 @@ internal sealed class PdfPrintPaginator : System.Windows.Documents.DocumentPagin
 
     public override System.Windows.Documents.DocumentPage GetPage(int pageNumber)
     {
-        // pageNumber is the print-job index (0..PageCount-1); map into the PDF page index.
-        var docPage = _startPage + pageNumber;
+        var docPage = pageNumber >= 0 && pageNumber < _pages.Count ? _pages[pageNumber] : 0;
         var (pw, ph) = _doc.GetPageSize(docPage);
         var scale = Math.Min(_pageSize.Width / pw, _pageSize.Height / ph);
         var bmp = _doc.RenderPage(docPage, scale);
@@ -1047,7 +1254,6 @@ internal sealed class PdfPrintPaginator : System.Windows.Documents.DocumentPagin
         {
             if (bmp != null)
             {
-                // Fit into printable area using points-based layout size.
                 var drawW = pw * scale;
                 var drawH = ph * scale;
                 dc.DrawImage(bmp, new Rect(0, 0, drawW, drawH));

@@ -38,6 +38,9 @@
                 <Button x:Name="SaveAsButton" Style="{StaticResource ToolbarButton}" Click="SaveAs_Click" ToolTip="Save As">
                     <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE74E;"/>
                 </Button>
+                <Button x:Name="SavePagesAsButton" Style="{StaticResource ToolbarButton}" Click="SavePagesAs_Click" ToolTip="Save pages as…">
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE7C3;"/>
+                </Button>
                 <Button x:Name="PrintButton" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="Print (Ctrl+P)">
                     <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE749;"/>
                 </Button>
@@ -89,11 +92,36 @@
                   VerticalAlignment="Center" Padding="0">
                 <MenuItem Header="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                           Foreground="{StaticResource IconBrush}" ToolTip="About">
+                    <MenuItem Header="Save pages as…" FontFamily="Segoe UI" FontSize="13"
+                              Click="SavePagesAs_Click"/>
                     <MenuItem Header="Duck waffles" FontFamily="Segoe UI" FontSize="13"
                               Click="DuckWaffles_Click"/>
                 </MenuItem>
             </Menu>
             </DockPanel>
+        </Border>
+
+        <!-- Quiet one-line Save As choice (selected vs whole) — no modal. -->
+        <Border x:Name="SaveAsChoiceBar" DockPanel.Dock="Top"
+                Background="White"
+                BorderBrush="{StaticResource BorderMutedBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="16,5"
+                Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Save as"
+                           FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0"/>
+                <Button x:Name="SaveAsSelectedChoice" Style="{StaticResource QuietChoiceLink}"
+                        Content="Selected pages" Click="SaveAsChoiceSelected_Click"/>
+                <TextBlock Text="|" FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           VerticalAlignment="Center" Margin="10,0"/>
+                <Button Style="{StaticResource QuietChoiceLink}"
+                        Content="Whole document" Click="SaveAsChoiceWhole_Click"/>
+            </StackPanel>
         </Border>
 
         <!-- Status bar (mock 02) -->
