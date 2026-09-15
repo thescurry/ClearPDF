@@ -139,7 +139,11 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 | Reader | `docs/mocks/chrome-arc-reader.png` (v1.1) / `02-reader.png` | `ReaderView` + one icon toolbar + status bar |
 | Password | `docs/mocks/03-password.png` | `Views/PasswordDialog.xaml` |
 
-Accent: `#5A7FA6` (one muted blue — selected thumb + find hit). Canvas: `#F1F2F7` (sampled from `chrome-arc-reader.png` so the white page pops). Toolbar: one ~36px icon strip (Segoe MDL2), labels on hover. No ribbons.
+Accent: `#5A7FA6` (one muted blue — Open CTA pill, selected thumb, find hit). Canvas: `#F1F2F7` (sampled from `chrome-arc-reader.png` so the white page pops). Toolbar: one ~36px icon strip (Segoe MDL2), labels on hover. No ribbons.
+
+**Deferred (later 1.1.x):** first-open Welcome card (`docs/mocks/chrome-arc-intro.png`) is not in this polish pass. Empty-state stays Open + Recent.
+
+Graphics/Steve empty-state gate: [`docs/qa.md`](docs/qa.md).
 
 ## Project tree
 
@@ -150,6 +154,7 @@ ClearPDF/
   README.md
   .gitignore
   docs/mocks/
+  docs/qa.md             # Graphics/Steve standing QA gates
   docs/test-output.txt   # captured `dotnet test` on Linux
   src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)

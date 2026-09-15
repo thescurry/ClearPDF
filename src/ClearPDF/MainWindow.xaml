@@ -128,7 +128,7 @@
         <Grid>
         <!-- Empty / recent (mock 01) -->
         <Grid x:Name="EmptyView" Background="{StaticResource CanvasBrush}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="300">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="520">
                 <!-- Soft filled dog-ear (Arc empty) -->
                 <Viewbox Width="44" Height="50" Margin="0,0,0,12" HorizontalAlignment="Center">
                     <Canvas Width="48" Height="56">
@@ -157,8 +157,8 @@
                            Margin="0,0,0,4"/>
 
                 <ItemsControl x:Name="RecentList"
-                              HorizontalAlignment="Center"
-                              Width="320">
+                              HorizontalAlignment="Stretch"
+                              Grid.IsSharedSizeScope="True">
                     <ItemsControl.ItemContainerStyle>
                         <Style TargetType="ContentPresenter">
                             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -169,17 +169,19 @@
                             <Grid Margin="0,2" HorizontalAlignment="Stretch">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="112" SharedSizeGroup="RecentTime"/>
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0"
                                         Content="{Binding DisplayName}"
                                         Style="{StaticResource RecentLink}"
                                         HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
+                                        HorizontalContentAlignment="Stretch"
                                         Tag="{Binding Path}"
                                         Click="RecentItem_Click"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding RelativeTime}"
+                                           TextTrimming="None"
+                                           TextWrapping="NoWrap"
                                            Foreground="{StaticResource TextMutedBrush}"
                                            FontSize="12"
                                            Margin="16,0,0,0"
