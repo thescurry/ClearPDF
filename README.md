@@ -88,19 +88,20 @@ Current architecture:
 |-------|----------|
 | Target DPI | `RenderPage` opens a short-lived Docnet reader at `PdfRenderScale.CapPixelsPerPoint(zoom, pageW, pageH)` — no TransformedBitmap thrash |
 | Caps | Longest edge ≤ 4096px, ≤ ~8M pixels/page |
-| Cache | `PageBitmapCache` keyed by `(pageIndex, quantizedZoom)` |
-| Threads | `Task.Run` raster → `Dispatcher` swaps `Image.Source`; last frame stays visible |
-| Zoom | Debounced settle still; pan/scroll does **not** re-Docnet |
+| Cache | `PageRasterCache` / `PageBitmapCache` keyed by `(pageIndex, quantizedZoom)`, capped at 24 page rasters; thumbs are a separate map |
+| Threads | Background raster → `Dispatcher` swaps `Image.Source`; last frame stays visible |
+| Zoom | Debounced settle (120ms); pan/scroll does **not** re-Docnet or rebuild thumbs |
+| Scroll | Chrome updates immediately; sharp window is debounced (80ms) and does **not** cancel in-flight neighbors |
 | Virtualize | Sharp bitmaps for current ±2 pages; far pages keep low-res preview |
-| Thumbnails | Low-res async pipeline at open (separate cache); scroll only updates selection chrome |
+| Thumbnails | Sequential low-res fill at open (separate cache); scroll/zoom only update selection chrome |
 | Password | `Unlock` once into memory bytes for re-raster; password never retained/stored |
 | Page size | Still **PDF points** via baseline reader (`PdfPageSize`) |
 
-Helpers: `PdfRenderScale` in Core (unit-tested). Details: [`docs/render-perf.md`](docs/render-perf.md).
+Helpers: `PdfRenderScale`, `PageRenderPlanner`, `PageRasterCache<T>` in Core (unit-tested). Details: [`docs/render-perf.md`](docs/render-perf.md).
 
 ## Runnable tests without WPF
 
-UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
+UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
 
 ## v1 scope
 
@@ -138,7 +139,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 | Reader | `docs/mocks/02-reader.png` | `ReaderView` + thin toolbar + status bar |
 | Password | `docs/mocks/03-password.png` | `Views/PasswordDialog.xaml` |
 
-Accent: `#3B6EA5`. Canvas: light gray. No ribbons.
+Accent: `#5A7FA6` (one muted blue — selected thumb + find hit). Canvas: `#E8EAEE` (softer gray so the white page pops). Toolbar: icon-first, labels on hover. No ribbons.
 
 ## Project tree
 
@@ -150,7 +151,7 @@ ClearPDF/
   .gitignore
   docs/mocks/
   docs/test-output.txt   # captured `dotnet test` on Linux
-  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs
+  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)
     ClearPDF.csproj
     App.xaml

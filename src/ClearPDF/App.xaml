@@ -3,25 +3,27 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Locked accent + canvas (mocks) -->
-        <Color x:Key="AccentColor">#3B6EA5</Color>
+        <!-- v1.1 polish tokens (Graphics Arc): softer canvas, one muted accent -->
+        <Color x:Key="AccentColor">#5A7FA6</Color>
         <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
-        <SolidColorBrush x:Key="CanvasBrush" Color="#F0F0F2"/>
+        <SolidColorBrush x:Key="CanvasBrush" Color="#E8EAEE"/>
+        <SolidColorBrush x:Key="RailBrush" Color="#E4E6EC"/>
         <SolidColorBrush x:Key="ToolbarBrush" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="BorderMutedBrush" Color="#D0D0D0"/>
         <SolidColorBrush x:Key="TextPrimaryBrush" Color="#222222"/>
         <SolidColorBrush x:Key="TextMutedBrush" Color="#888888"/>
-        <SolidColorBrush x:Key="StatusBarBrush" Color="#EAEAEB"/>
+        <SolidColorBrush x:Key="StatusBarBrush" Color="#E2E3E8"/>
 
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Padding" Value="7,4"/>
             <Setter Property="Margin" Value="0"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="200"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -68,7 +70,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="#FAFAFA"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B6EA5"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -116,7 +118,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#4A7DB5"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#6B90B4"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Background" Value="#A0B8D0"/>

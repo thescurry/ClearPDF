@@ -58,4 +58,12 @@ public static class FindHelper
             return hitCount - 1;
         return currentIndex - 1;
     }
+
+    /// <summary>Page that should show the muted find-hit accent, or -1.</summary>
+    public static int CurrentHitPage(IReadOnlyList<Hit> hits, int currentIndex)
+    {
+        if (currentIndex < 0 || currentIndex >= hits.Count)
+            return -1;
+        return hits[currentIndex].PageIndex;
+    }
 }

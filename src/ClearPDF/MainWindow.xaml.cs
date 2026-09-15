@@ -28,7 +28,7 @@ public partial class MainWindow : Window
     private string[] _pageTexts = Array.Empty<string>();
     private double _renderedZoom = ZoomHelper.DefaultZoom;
     private DispatcherTimer? _zoomRenderTimer;
-    private const int ZoomRenderDebounceMs = 150;
+    private DispatcherTimer? _scrollRenderTimer;
 
     /// <summary>Page Image controls — Source swapped async; last frame stays visible.</summary>
     private Image[] _pageImages = Array.Empty<Image>();
@@ -39,6 +39,13 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _renderCts;
     private int _renderGeneration;
     private bool _thumbsBuilt;
+    private readonly HashSet<(int Page, int ZoomKey, int Gen)> _inFlight = new();
+    private readonly object _inFlightGate = new();
+    private bool[] _pageShowingSharp = Array.Empty<bool>();
+    private double[] _pageTops = Array.Empty<double>();
+    private bool _pageTopsDirty = true;
+    private int _highlightedThumb = -1;
+    private int _findHitPage = -1;
 
     /// <summary>Thumbnail Image controls — filled by a pipeline separate from main pages.</summary>
     private Image[] _thumbImages = Array.Empty<Image>();
@@ -47,8 +54,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _thumbCts;
     private int _thumbGeneration;
 
-    /// <summary>Pages on either side of current that get sharp bitmaps.</summary>
-    private const int SharpWindowRadius = 2;
+    private const double ScrollerPadding = 20;
 
     public MainWindow()
     {
@@ -56,6 +62,8 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
         Closed += (_, _) =>
         {
+            _zoomRenderTimer?.Stop();
+            _scrollRenderTimer?.Stop();
             CancelRenders();
             CancelThumbRenders();
             _doc?.Dispose();
@@ -145,8 +153,10 @@ public partial class MainWindow : Window
             }
             catch (PdfPasswordException ex)
             {
-                // Wrong/missing password — prompt again. Never store.
+                // Wrong/missing password — prompt again (view unlock only). Never store.
                 AppLog.Warn($"Password error opening '{path}': {ex.Message}");
+                if (!PdfUnlockPolicy.ShouldPromptAgainAfterFailure)
+                    return;
                 pwd = PromptPassword();
                 if (pwd == null)
                     return;
@@ -162,7 +172,7 @@ public partial class MainWindow : Window
 
     private string? PromptPassword()
     {
-        // View unlock only — PasswordDialog does not persist the value.
+        // PdfUnlockPolicy: prompt exists, view unlock only, never persist.
         var dlg = new PasswordDialog { Owner = this };
         return dlg.ShowDialog() == true ? dlg.Password : null;
     }
@@ -170,9 +180,13 @@ public partial class MainWindow : Window
     private void SetDocument(IPdfDocument doc, string path)
     {
         _zoomRenderTimer?.Stop();
+        _scrollRenderTimer?.Stop();
         CancelRenders();
         CancelThumbRenders();
         _bitmapCache.Clear();
+        _findHitPage = -1;
+        _highlightedThumb = -1;
+        InvalidatePageTops();
         _doc?.Dispose();
         _doc = doc;
         _zoom = ZoomHelper.DefaultZoom;
@@ -244,6 +258,8 @@ public partial class MainWindow : Window
             var border = new Border
             {
                 Background = Brushes.White,
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(2),
                 Margin = new Thickness(0, 0, 0, 16),
                 Width = displayW,
                 Height = displayH,
@@ -259,6 +275,10 @@ public partial class MainWindow : Window
             };
             PageHost.Children.Add(border);
         }
+
+        _pageShowingSharp = new bool[_doc.PageCount];
+        _findHitPage = -1;
+        InvalidatePageTops();
     }
 
     /// <summary>
@@ -283,6 +303,8 @@ public partial class MainWindow : Window
                 border.Height = displayH;
             }
         }
+
+        InvalidatePageTops();
     }
 
     /// <summary>Fixed thumb rail width in DIPs; height follows each page's PDF-point aspect.</summary>
@@ -355,6 +377,7 @@ public partial class MainWindow : Window
         }
 
         _thumbsBuilt = true;
+        _highlightedThumb = _currentPage;
     }
 
     /// <summary>
@@ -372,23 +395,25 @@ public partial class MainWindow : Window
         var doc = _doc;
         var count = doc.PageCount;
 
-        for (var i = 0; i < count; i++)
+        // One sequential worker — Docnet is process-gated; flooding Task.Run
+        // contended with sharp page rasters on image-heavy docs.
+        _ = Task.Run(() =>
         {
-            var pageIndex = i;
-
-            if (_bitmapCache.TryGetThumb(pageIndex, out var cached) && cached != null)
-            {
-                ApplyThumbBitmap(pageIndex, cached, gen, doc);
-                continue;
-            }
-
-            _ = Task.Run(() =>
+            for (var pageIndex = 0; pageIndex < count; pageIndex++)
             {
                 if (token.IsCancellationRequested || gen != _thumbGeneration)
                     return;
+
+                if (_bitmapCache.TryGetThumb(pageIndex, out var cached) && cached != null)
+                {
+                    var hit = cached;
+                    var idx = pageIndex;
+                    Dispatcher.BeginInvoke(() => ApplyThumbBitmap(idx, hit, gen, doc));
+                    continue;
+                }
+
                 try
                 {
-                    // Low-res only — do not pull from main page cache.
                     var bmp = doc.RenderPage(pageIndex, PdfRenderScale.ThumbZoom);
                     if (bmp == null || token.IsCancellationRequested || gen != _thumbGeneration)
                         return;
@@ -399,8 +424,8 @@ public partial class MainWindow : Window
                 {
                     AppLog.Warn($"Thumb render failed page {pageIndex}: {ex.Message}");
                 }
-            }, token);
-        }
+            }
+        }, token);
     }
 
     private void ApplyThumbBitmap(int pageIndex, BitmapSource bmp, int gen, IPdfDocument doc)
@@ -429,7 +454,7 @@ public partial class MainWindow : Window
         _thumbCts = new CancellationTokenSource();
     }
 
-    private static Border CreateThumbBadge(int pageIndex, bool selected)
+    private Border CreateThumbBadge(int pageIndex, bool selected)
     {
         return new Border
         {
@@ -439,7 +464,7 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Bottom,
             Margin = new Thickness(4),
             Background = selected
-                ? new SolidColorBrush(Color.FromRgb(0x3B, 0x6E, 0xA5))
+                ? (Brush)FindResource("AccentBrush")
                 : new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99)),
             Child = new TextBlock
             {
@@ -458,27 +483,37 @@ public partial class MainWindow : Window
             ? (Brush)FindResource("AccentBrush")
             : new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC));
 
-    /// <summary>Update selection chrome only — no Docnet calls.</summary>
+    /// <summary>Update selection chrome only — no Docnet calls, no full-rail walk.</summary>
     private void HighlightCurrentThumbnail()
     {
         if (!_thumbsBuilt || _thumbFrames.Length == 0)
             return;
 
-        for (var i = 0; i < _thumbFrames.Length; i++)
+        if (_highlightedThumb >= 0 &&
+            _highlightedThumb < _thumbFrames.Length &&
+            _highlightedThumb != _currentPage)
         {
-            var selected = i == _currentPage;
-            _thumbFrames[i].BorderBrush = ThumbBorderBrush(selected);
-            if (_thumbFrames[i].Child is Grid grid)
+            ApplyThumbChrome(_highlightedThumb, selected: false);
+        }
+
+        if (_currentPage >= 0 && _currentPage < _thumbFrames.Length)
+            ApplyThumbChrome(_currentPage, selected: true);
+
+        _highlightedThumb = _currentPage;
+    }
+
+    private void ApplyThumbChrome(int index, bool selected)
+    {
+        _thumbFrames[index].BorderBrush = ThumbBorderBrush(selected);
+        if (_thumbFrames[index].Child is not Grid grid)
+            return;
+        foreach (var child in grid.Children)
+        {
+            if (child is Border { Tag: "badge" } badge)
             {
-                foreach (var child in grid.Children)
-                {
-                    if (child is Border { Tag: "badge" } badge)
-                    {
-                        badge.Background = selected
-                            ? (Brush)FindResource("AccentBrush")
-                            : new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
-                    }
-                }
+                badge.Background = selected
+                    ? (Brush)FindResource("AccentBrush")
+                    : new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
             }
         }
     }
@@ -541,7 +576,7 @@ public partial class MainWindow : Window
         {
             _zoomRenderTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(ZoomRenderDebounceMs)
+                Interval = TimeSpan.FromMilliseconds(PageRenderPlanner.ZoomDebounceMs)
             };
             _zoomRenderTimer.Tick += (_, _) =>
             {
@@ -579,6 +614,10 @@ public partial class MainWindow : Window
             el.BringIntoView();
         }
 
+        // PageRenderPlanner.ShouldRebuildThumbsOnZoom is false — do not touch thumb shells.
+        Array.Clear(_pageShowingSharp);
+        _bitmapCache.FocusPage = _currentPage;
+        _bitmapCache.Trim();
         SchedulePageRenders(includePreviews: true);
     }
 
@@ -596,86 +635,129 @@ public partial class MainWindow : Window
         }
 
         _renderCts = new CancellationTokenSource();
+        lock (_inFlightGate)
+            _inFlight.Clear();
     }
 
     /// <summary>
     /// Queue background rasters. Nearby pages get sharp (quantized) zoom; far pages
-    /// optionally get a low-res preview. Scroll never forces a full re-render.
+    /// optionally get a low-res preview. Scroll never cancels in-window work and
+    /// never rebuilds thumbnails.
     /// </summary>
     private void SchedulePageRenders(bool includePreviews)
     {
         if (_doc == null || _pageImages.Length == 0)
             return;
 
-        CancelRenders();
+        // Zoom/open may cancel everything. Scroll keeps in-flight window rasters.
+        if (includePreviews)
+            CancelRenders();
+        else if (_renderCts == null)
+            _renderCts = new CancellationTokenSource();
+
         var token = _renderCts!.Token;
         var gen = _renderGeneration;
         var doc = _doc;
         var sharpZoom = PdfRenderScale.QuantizeZoom(_renderedZoom);
         var current = _currentPage;
         var count = doc.PageCount;
+        _bitmapCache.FocusPage = current;
 
-        var sharpLo = Math.Max(0, current - SharpWindowRadius);
-        var sharpHi = Math.Min(count - 1, current + SharpWindowRadius);
-
-        // Priority: current page first, then neighbors, then previews.
-        var work = new List<(int Page, double Zoom, bool Sharp)>();
-        work.Add((current, sharpZoom, true));
-        for (var i = sharpLo; i <= sharpHi; i++)
-        {
-            if (i != current)
-                work.Add((i, sharpZoom, true));
-        }
-
-        if (includePreviews)
-        {
-            for (var i = 0; i < count; i++)
-            {
-                if (i >= sharpLo && i <= sharpHi)
-                    continue;
-                work.Add((i, PdfRenderScale.PreviewZoom, false));
-            }
-        }
-
-        foreach (var job in work)
+        foreach (var job in PageRenderPlanner.BuildJobs(current, count, includePreviews))
         {
             var pageIndex = job.Page;
-            var zoom = job.Zoom;
+            var zoom = job.Sharp ? sharpZoom : PdfRenderScale.PreviewZoom;
+            var zoomKey = PdfRenderScale.ZoomCacheKey(zoom);
 
             if (_bitmapCache.TryGet(pageIndex, zoom, out var cached) && cached != null)
             {
-                ApplyPageBitmap(pageIndex, cached, gen, doc);
+                ApplyPageBitmap(pageIndex, cached, gen, doc, job.Sharp);
                 continue;
             }
 
+            var flight = (pageIndex, zoomKey, gen);
+            lock (_inFlightGate)
+            {
+                if (!_inFlight.Add(flight))
+                    continue;
+            }
+
+            var isSharp = job.Sharp;
             _ = Task.Run(() =>
             {
-                if (token.IsCancellationRequested || gen != _renderGeneration)
-                    return;
                 try
                 {
+                    if (token.IsCancellationRequested || gen != _renderGeneration)
+                        return;
                     var bmp = doc.RenderPage(pageIndex, zoom);
                     if (bmp == null || token.IsCancellationRequested || gen != _renderGeneration)
                         return;
                     _bitmapCache.Set(pageIndex, zoom, bmp);
-                    Dispatcher.BeginInvoke(() => ApplyPageBitmap(pageIndex, bmp, gen, doc));
+                    Dispatcher.BeginInvoke(() => ApplyPageBitmap(pageIndex, bmp, gen, doc, isSharp));
                 }
                 catch (Exception ex)
                 {
                     AppLog.Warn($"Page render failed {pageIndex}@{zoom:0.##}: {ex.Message}");
                 }
+                finally
+                {
+                    lock (_inFlightGate)
+                        _inFlight.Remove(flight);
+                }
             }, token);
         }
     }
 
-    private void ApplyPageBitmap(int pageIndex, BitmapSource bmp, int gen, IPdfDocument doc)
+    private void ApplyPageBitmap(int pageIndex, BitmapSource bmp, int gen, IPdfDocument doc, bool isSharp)
     {
         if (gen != _renderGeneration || _doc != doc)
             return;
         if (pageIndex < 0 || pageIndex >= _pageImages.Length)
             return;
+        var alreadySharp = pageIndex < _pageShowingSharp.Length && _pageShowingSharp[pageIndex];
+        if (PageRenderPlanner.ShouldKeepExistingBitmap(!isSharp, alreadySharp))
+            return;
         // Keep last frame until we have something to show — then swap.
         _pageImages[pageIndex].Source = bmp;
+        if (pageIndex < _pageShowingSharp.Length)
+            _pageShowingSharp[pageIndex] = isSharp;
+    }
+
+    private void ScheduleDebouncedScrollRender()
+    {
+        if (_scrollRenderTimer == null)
+        {
+            _scrollRenderTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(PageRenderPlanner.ScrollRenderDebounceMs)
+            };
+            _scrollRenderTimer.Tick += (_, _) =>
+            {
+                _scrollRenderTimer.Stop();
+                SchedulePageRenders(includePreviews: false);
+            };
+        }
+
+        _scrollRenderTimer.Stop();
+        _scrollRenderTimer.Start();
+    }
+
+    private void InvalidatePageTops() => _pageTopsDirty = true;
+
+    private void EnsurePageTops()
+    {
+        var n = PageHost.Children.Count;
+        if (!_pageTopsDirty && _pageTops.Length == n)
+            return;
+        if (_pageTops.Length != n)
+            _pageTops = new double[n];
+        for (var i = 0; i < n; i++)
+        {
+            if (PageHost.Children[i] is FrameworkElement el)
+                _pageTops[i] = el.TransformToAncestor(PageHost).Transform(new Point(0, 0)).Y;
+        }
+
+        _pageTopsDirty = false;
     }
 
     private void ZoomIn_Click(object sender, RoutedEventArgs e) => ApplyZoom(ZoomHelper.ZoomIn(_zoom));
@@ -689,7 +771,7 @@ public partial class MainWindow : Window
             return;
         var (w, _) = _doc.GetPageSize(_currentPage);
         var viewport = PageScroller.ViewportWidth;
-        ApplyZoom(ZoomHelper.FitWidth(w, viewport));
+        ApplyZoom(ZoomHelper.FitWidth(w, viewport, padding: ScrollerPadding));
     }
 
     private void FitPage_Click(object sender, RoutedEventArgs e)
@@ -697,7 +779,8 @@ public partial class MainWindow : Window
         if (_doc == null)
             return;
         var (w, h) = _doc.GetPageSize(_currentPage);
-        ApplyZoom(ZoomHelper.FitPage(w, h, PageScroller.ViewportWidth, PageScroller.ViewportHeight));
+        ApplyZoom(ZoomHelper.FitPage(w, h, PageScroller.ViewportWidth, PageScroller.ViewportHeight,
+            padding: ScrollerPadding));
     }
 
     private void FindToggle_Click(object sender, RoutedEventArgs e)
@@ -724,6 +807,8 @@ public partial class MainWindow : Window
         if (reset)
             _findIndex = -1;
         FindStatus.Text = _findHits.Count == 0 ? "No matches" : $"{_findHits.Count} matches";
+        if (_findHits.Count == 0)
+            ApplyFindHitChrome();
     }
 
     private void FindNext_Click(object sender, RoutedEventArgs e)
@@ -746,7 +831,31 @@ public partial class MainWindow : Window
             return;
         var hit = _findHits[_findIndex];
         FindStatus.Text = $"{_findIndex + 1} / {_findHits.Count}";
+        ApplyFindHitChrome();
         GoToPage(hit.PageIndex);
+    }
+
+    /// <summary>One muted accent on the current find-hit page (same token as selected thumb).</summary>
+    private void ApplyFindHitChrome()
+    {
+        var page = FindHelper.CurrentHitPage(_findHits, _findIndex);
+        if (_findHitPage == page)
+            return;
+
+        if (_findHitPage >= 0 &&
+            _findHitPage < PageHost.Children.Count &&
+            PageHost.Children[_findHitPage] is Border oldBorder)
+        {
+            oldBorder.BorderBrush = Brushes.Transparent;
+        }
+
+        _findHitPage = page;
+        if (page >= 0 &&
+            page < PageHost.Children.Count &&
+            PageHost.Children[page] is Border border)
+        {
+            border.BorderBrush = (Brush)FindResource("AccentBrush");
+        }
     }
 
     private void SaveAs_Click(object sender, RoutedEventArgs e)
@@ -792,21 +901,16 @@ public partial class MainWindow : Window
                 return;
 
             // PrintDialog.PrintDocument does not apply PageRange itself — map into paginator.
-            var startPage = 0; // 0-based inclusive
-            var endPage = _doc.PageCount - 1;
-            if (dlg.PageRangeSelection == PageRangeSelection.SelectedPages)
+            // Selection = current left-rail / viewer page (PrintPageRange).
+            var mode = dlg.PageRangeSelection switch
             {
-                // "Selection" = the highlighted thumb / current viewer page (not text selection).
-                var cur = Math.Clamp(_currentPage, 0, _doc.PageCount - 1);
-                startPage = endPage = cur;
-            }
-            else if (dlg.PageRangeSelection == PageRangeSelection.UserPages)
-            {
-                startPage = Math.Clamp(dlg.PageRange.PageFrom - 1, 0, _doc.PageCount - 1);
-                endPage = Math.Clamp(dlg.PageRange.PageTo - 1, 0, _doc.PageCount - 1);
-                if (endPage < startPage)
-                    endPage = startPage;
-            }
+                PageRangeSelection.SelectedPages => PrintRangeMode.Selection,
+                PageRangeSelection.UserPages => PrintRangeMode.UserPages,
+                _ => PrintRangeMode.AllPages
+            };
+            var (startPage, endPage) = PrintPageRange.Resolve(
+                mode, _currentPage, _doc.PageCount,
+                dlg.PageRange.PageFrom, dlg.PageRange.PageTo);
 
             var paginator = new PdfPrintPaginator(
                 _doc, dlg.PrintableAreaWidth, dlg.PrintableAreaHeight, startPage, endPage);
@@ -823,31 +927,20 @@ public partial class MainWindow : Window
         if (_doc == null || PageHost.Children.Count == 0)
             return;
 
-        // Pick the page whose top is nearest the viewport center.
+        if (e.ExtentHeightChange != 0 || e.ExtentWidthChange != 0)
+            InvalidatePageTops();
+
+        EnsurePageTops();
         var center = PageScroller.VerticalOffset + PageScroller.ViewportHeight / 3;
-        var best = 0;
-        var bestDist = double.MaxValue;
-        for (var i = 0; i < PageHost.Children.Count; i++)
-        {
-            if (PageHost.Children[i] is not FrameworkElement el)
-                continue;
-            var top = el.TransformToAncestor(PageHost).Transform(new Point(0, 0)).Y;
-            var dist = Math.Abs(top - center);
-            if (dist < bestDist)
-            {
-                bestDist = dist;
-                best = i;
-            }
-        }
+        var best = ScrollPagePicker.PickCurrentPageNear(_pageTops, center, _currentPage);
 
         if (best != _currentPage)
         {
             _currentPage = best;
-            // Selection chrome only — do NOT rebuild thumbnails or re-Docnet on scroll.
+            // Selection chrome only — do NOT rebuild thumbnails or cancel in-window rasters.
             HighlightCurrentThumbnail();
             UpdateStatus();
-            // Ensure sharp window around the new page; far pages keep preview/last frame.
-            SchedulePageRenders(includePreviews: false);
+            ScheduleDebouncedScrollRender();
         }
     }
 
