@@ -69,7 +69,7 @@ $Iss = Join-Path $InstallerDir 'ClearPDF.iss'
 if (-not (Test-Path $Iss)) { throw "Missing $Iss" }
 
 # Compile
-& $Iscc "/DAppSource=$AppSource" "/DInstallerDir=$InstallerDir" $Iss
+& $Iscc "/DAppSource=$AppSource" "/DSetupOutputDir=$Docs" "/DInstallerDir=$InstallerDir" $Iss
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit $LASTEXITCODE" }
 
 $Setup = Join-Path $Docs 'ClearPDF-Setup.exe'

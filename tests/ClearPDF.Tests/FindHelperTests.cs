@@ -37,4 +37,15 @@ public class FindHelperTests
         Assert.Equal(2, FindHelper.PrevIndex(3, 0));
         Assert.Equal(1, FindHelper.PrevIndex(3, 2));
     }
+
+    [Fact]
+    public void CurrentHitPage_drives_muted_accent_chrome()
+    {
+        var hits = FindHelper.FindAll(new[] { "alpha", "beta alpha" }, "alpha");
+        Assert.Equal(2, hits.Count);
+        Assert.Equal(0, FindHelper.CurrentHitPage(hits, 0));
+        Assert.Equal(1, FindHelper.CurrentHitPage(hits, 1));
+        Assert.Equal(-1, FindHelper.CurrentHitPage(hits, -1));
+        Assert.Equal(-1, FindHelper.CurrentHitPage(hits, 9));
+    }
 }

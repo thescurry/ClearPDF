@@ -94,4 +94,13 @@ public class CommandLinePdfArgsTests : IDisposable
     {
         Assert.Null(CommandLinePdfArgs.TryGetFirstExistingPdf(new[] { _txtPath }));
     }
+
+    [Fact]
+    public void Open_with_style_argv_skips_exe_and_picks_pdf()
+    {
+        // Explorer "Open with" / `ClearPDF.exe "file.pdf"` — argv[0] is the exe.
+        var argv = new[] { @"C:\Program Files\ClearPDF\ClearPDF.exe", _pdfPath };
+        var result = CommandLinePdfArgs.TryGetFirstExistingPdf(argv.Skip(1));
+        Assert.Equal(Path.GetFullPath(_pdfPath), result);
+    }
 }

@@ -46,4 +46,32 @@ public class RecentFilesServiceTests
                 File.Delete(store);
         }
     }
+
+    [Fact]
+    public void Add_caps_at_12_and_drops_oldest()
+    {
+        var store = Path.Combine(Path.GetTempPath(), "clearpdf-recent-test-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var svc = new RecentFilesService(store);
+            var paths = Enumerable.Range(0, 13)
+                .Select(i => Path.Combine(Path.GetTempPath(), $"clearpdf-cap-{i}-{Guid.NewGuid():N}.pdf"))
+                .ToList();
+
+            foreach (var path in paths)
+                svc.Add(path);
+
+            var list = svc.Load();
+            Assert.Equal(12, list.Count);
+            Assert.Equal(Path.GetFullPath(paths[12]), list[0].Path);
+            Assert.Equal(Path.GetFullPath(paths[1]), list[11].Path);
+            Assert.DoesNotContain(list, e =>
+                string.Equals(e.Path, Path.GetFullPath(paths[0]), StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (File.Exists(store))
+                File.Delete(store);
+        }
+    }
 }

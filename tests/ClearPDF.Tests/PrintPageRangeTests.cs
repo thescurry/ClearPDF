@@ -1,0 +1,63 @@
+using ClearPDF.Helpers;
+using Xunit;
+
+namespace ClearPDF.Tests;
+
+public class PrintPageRangeTests
+{
+    [Fact]
+    public void Selection_is_the_current_left_rail_page()
+    {
+        var (start, end) = PrintPageRange.Resolve(
+            PrintRangeMode.Selection, currentPage0: 4, pageCount: 12);
+        Assert.Equal(4, start);
+        Assert.Equal(4, end);
+    }
+
+    [Fact]
+    public void Selection_clamps_out_of_range_current_page()
+    {
+        var (start, end) = PrintPageRange.Resolve(
+            PrintRangeMode.Selection, currentPage0: 99, pageCount: 3);
+        Assert.Equal(2, start);
+        Assert.Equal(2, end);
+    }
+
+    [Fact]
+    public void AllPages_spans_the_document()
+    {
+        var (start, end) = PrintPageRange.Resolve(
+            PrintRangeMode.AllPages, currentPage0: 4, pageCount: 8);
+        Assert.Equal(0, start);
+        Assert.Equal(7, end);
+    }
+
+    [Fact]
+    public void UserPages_maps_1_based_dialog_range()
+    {
+        var (start, end) = PrintPageRange.Resolve(
+            PrintRangeMode.UserPages, currentPage0: 0, pageCount: 10,
+            userFrom1Based: 3, userTo1Based: 5);
+        Assert.Equal(2, start);
+        Assert.Equal(4, end);
+    }
+
+    [Fact]
+    public void UserPages_raises_inverted_end_to_start()
+    {
+        var (start, end) = PrintPageRange.Resolve(
+            PrintRangeMode.UserPages, currentPage0: 0, pageCount: 10,
+            userFrom1Based: 8, userTo1Based: 2);
+        // from 8 → 7, to 2 → 1, then end < start → end = start
+        Assert.Equal(7, start);
+        Assert.Equal(7, end);
+    }
+
+    [Fact]
+    public void Empty_document_returns_empty_span()
+    {
+        var (start, end) = PrintPageRange.Resolve(PrintRangeMode.Selection, 0, 0);
+        Assert.Equal(0, start);
+        Assert.Equal(-1, end);
+    }
+}

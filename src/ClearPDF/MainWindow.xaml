@@ -12,50 +12,40 @@
         Drop="Window_Drop"
         PreviewKeyDown="Window_PreviewKeyDown">
     <DockPanel>
-    <!-- Menu bar: About → Duck waffles easter egg -->
-        <Menu DockPanel.Dock="Top"
+    <!-- Empty-only menu (hidden on reader so chrome is one ~36px icon strip). -->
+        <Menu x:Name="AppMenu" DockPanel.Dock="Top"
               Background="{StaticResource ToolbarBrush}"
               BorderBrush="{StaticResource BorderMutedBrush}"
               BorderThickness="0,0,0,1"
-              Padding="4,2">
+              Padding="6,1">
             <MenuItem Header="_About">
+                <MenuItem Header="ClearPDF 1.1.0" Click="About_Click"/>
                 <MenuItem Header="Duck waffles" Click="DuckWaffles_Click"/>
             </MenuItem>
         </Menu>
 
-        <!-- Thin toolbar (mock 02) — hidden on empty screen -->
+        <!-- Thin icon-first toolbar (Arc reader) — labels on hover ToolTips -->
         <Border x:Name="ToolbarBorder" DockPanel.Dock="Top"
                 Background="{StaticResource ToolbarBrush}"
                 BorderBrush="{StaticResource BorderMutedBrush}"
                 BorderThickness="0,0,0,1"
                 Visibility="Collapsed">
-            <StackPanel Orientation="Horizontal" Margin="4,2">
+            <DockPanel LastChildFill="False" Margin="8,0">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                 <Button Style="{StaticResource ToolbarButton}" Click="Open_Click" ToolTip="Open (Ctrl+O)">
-                    <StackPanel>
-                        <TextBlock Text="📂" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Open" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE8E5;"/>
                 </Button>
                 <Button x:Name="SaveAsButton" Style="{StaticResource ToolbarButton}" Click="SaveAs_Click" ToolTip="Save As">
-                    <StackPanel>
-                        <TextBlock Text="💾" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Save As" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE74E;"/>
                 </Button>
                 <Button x:Name="PrintButton" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="Print (Ctrl+P)">
-                    <StackPanel>
-                        <TextBlock Text="🖨" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Print" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE749;"/>
                 </Button>
 
-                <Border Width="1" Background="#DDDDDD" Margin="8,6"/>
+                <Border Width="1" Background="#E4E4E8" Margin="6,8"/>
 
                 <Button x:Name="ZoomOutButton" Style="{StaticResource ToolbarButton}" Click="ZoomOut_Click" ToolTip="Zoom out">
-                    <StackPanel>
-                        <TextBlock Text="🔍−" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Zoom −" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE738;"/>
                 </Button>
                 <Button x:Name="ZoomLabel" Content="100%"
                         Style="{StaticResource ToolbarButton}"
@@ -64,46 +54,46 @@
                         VerticalAlignment="Center"
                         Margin="2,0" FontSize="12"
                         Foreground="{StaticResource TextPrimaryBrush}"
-                        MinWidth="44" Padding="6,4"/>
+                        MinWidth="40" Padding="6,4"/>
                 <Button x:Name="ZoomInButton" Style="{StaticResource ToolbarButton}" Click="ZoomIn_Click" ToolTip="Zoom in">
-                    <StackPanel>
-                        <TextBlock Text="🔍+" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Zoom +" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE710;"/>
                 </Button>
 
-                <Border Width="1" Background="#DDDDDD" Margin="8,6"/>
+                <Border Width="1" Background="#E4E4E8" Margin="6,8"/>
 
                 <Button x:Name="FitWidthButton" Style="{StaticResource ToolbarButton}" Click="FitWidth_Click" ToolTip="Fit width">
-                    <StackPanel>
-                        <TextBlock Text="↔" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Fit width" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE8A1;"/>
                 </Button>
                 <Button x:Name="FitPageButton" Style="{StaticResource ToolbarButton}" Click="FitPage_Click" ToolTip="Fit page">
-                    <StackPanel>
-                        <TextBlock Text="⛶" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Fit page" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE7F7;"/>
                 </Button>
                 <Button x:Name="FindButton" Style="{StaticResource ToolbarButton}" Click="FindToggle_Click" ToolTip="Find (Ctrl+F)">
-                    <StackPanel>
-                        <TextBlock Text="🔎" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Find" HorizontalAlignment="Center"/>
-                    </StackPanel>
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE721;"/>
                 </Button>
 
                 <!-- Inline find strip -->
-                <StackPanel x:Name="FindPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="12,0,0,0"
+                <StackPanel x:Name="FindPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="10,0,0,0"
                             VerticalAlignment="Center">
-                    <TextBox x:Name="FindBox" Width="160" Height="26" VerticalContentAlignment="Center"
-                             Padding="6,2" KeyDown="FindBox_KeyDown"/>
-                    <Button Content="Prev" Style="{StaticResource ToolbarButton}" Click="FindPrev_Click" Margin="4,0,0,0"/>
-                    <Button Content="Next" Style="{StaticResource ToolbarButton}" Click="FindNext_Click"/>
+                    <TextBox x:Name="FindBox" Width="148" Height="24" VerticalContentAlignment="Center"
+                             Padding="6,1" KeyDown="FindBox_KeyDown"/>
+                    <Button Content="Prev" Style="{StaticResource ToolbarButton}" Click="FindPrev_Click" Margin="4,0,0,0"
+                            ToolTip="Previous match"/>
+                    <Button Content="Next" Style="{StaticResource ToolbarButton}" Click="FindNext_Click"
+                            ToolTip="Next match"/>
                     <TextBlock x:Name="FindStatus" VerticalAlignment="Center" Margin="8,0,0,0"
                                FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                 </StackPanel>
             </StackPanel>
+            <Menu DockPanel.Dock="Right"
+                  Background="Transparent" BorderThickness="0"
+                  VerticalAlignment="Center" Padding="0">
+                <MenuItem Header="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                          Foreground="{StaticResource IconBrush}" ToolTip="About">
+                    <MenuItem Header="Duck waffles" FontFamily="Segoe UI" FontSize="13"
+                              Click="DuckWaffles_Click"/>
+                </MenuItem>
+            </Menu>
+            </DockPanel>
         </Border>
 
         <!-- Status bar (mock 02) -->
@@ -111,7 +101,7 @@
                 Background="{StaticResource StatusBarBrush}"
                 BorderBrush="{StaticResource BorderMutedBrush}"
                 BorderThickness="0,1,0,0"
-                Padding="12,4"
+                Padding="16,2"
                 Visibility="Collapsed">
             <Grid>
                 <TextBlock x:Name="PageStatusText" Text="1 / 1"
@@ -139,37 +129,37 @@
         <Grid>
         <!-- Empty / recent (mock 01) -->
         <Grid x:Name="EmptyView" Background="{StaticResource CanvasBrush}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="340">
-                <!-- Simple dog-ear document icon -->
-                <Viewbox Width="56" Height="64" Margin="0,0,0,16" HorizontalAlignment="Center">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="520">
+                <!-- Soft filled dog-ear (Arc empty) -->
+                <Viewbox Width="44" Height="50" Margin="0,0,0,12" HorizontalAlignment="Center">
                     <Canvas Width="48" Height="56">
-                        <Path Stroke="#555555" StrokeThickness="2" Fill="Transparent"
+                        <Path Stroke="#B0B4BC" StrokeThickness="1.5" Fill="#F7F8FA"
                               Data="M8,4 L32,4 L40,12 L40,52 L8,52 Z"/>
-                        <Path Stroke="#555555" StrokeThickness="2" Fill="Transparent"
+                        <Path Stroke="#B0B4BC" StrokeThickness="1.5" Fill="#EEF0F4"
                               Data="M32,4 L32,12 L40,12"/>
-                        <Line X1="14" Y1="22" X2="34" Y2="22" Stroke="#555555" StrokeThickness="2"/>
-                        <Line X1="14" Y1="30" X2="34" Y2="30" Stroke="#555555" StrokeThickness="2"/>
-                        <Line X1="14" Y1="38" X2="28" Y2="38" Stroke="#555555" StrokeThickness="2"/>
+                        <Line X1="14" Y1="22" X2="34" Y2="22" Stroke="#C5C8D0" StrokeThickness="1.5"/>
+                        <Line X1="14" Y1="30" X2="34" Y2="30" Stroke="#C5C8D0" StrokeThickness="1.5"/>
+                        <Line X1="14" Y1="38" X2="28" Y2="38" Stroke="#C5C8D0" StrokeThickness="1.5"/>
                     </Canvas>
                 </Viewbox>
 
                 <TextBlock Text="Open a PDF"
                            FontSize="22" FontWeight="Normal"
-                           Foreground="#333333"
+                           Foreground="#2A2A30"
                            HorizontalAlignment="Center" TextAlignment="Center"
-                           Margin="0,0,0,16"/>
+                           Margin="0,0,0,12"/>
 
                 <Button Content="Open..." Style="{StaticResource OpenHeroButton}"
-                        HorizontalAlignment="Center" Click="Open_Click" Margin="0,0,0,28"/>
+                        HorizontalAlignment="Center" Click="Open_Click" Margin="0,0,0,20"/>
 
                 <TextBlock Text="Recent"
-                           FontSize="12" Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="11" Foreground="{StaticResource TextMutedBrush}"
                            HorizontalAlignment="Center" TextAlignment="Center"
-                           Margin="0,0,0,8"/>
+                           Margin="0,0,0,4"/>
 
                 <ItemsControl x:Name="RecentList"
-                              HorizontalAlignment="Center"
-                              Width="320">
+                              HorizontalAlignment="Stretch"
+                              Grid.IsSharedSizeScope="True">
                     <ItemsControl.ItemContainerStyle>
                         <Style TargetType="ContentPresenter">
                             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -177,20 +167,22 @@
                     </ItemsControl.ItemContainerStyle>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0,4" HorizontalAlignment="Stretch">
+                            <Grid Margin="0,2" HorizontalAlignment="Stretch">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="112" SharedSizeGroup="RecentTime"/>
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0"
                                         Content="{Binding DisplayName}"
                                         Style="{StaticResource RecentLink}"
                                         HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Left"
+                                        HorizontalContentAlignment="Stretch"
                                         Tag="{Binding Path}"
                                         Click="RecentItem_Click"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding RelativeTime}"
+                                           TextTrimming="None"
+                                           TextWrapping="NoWrap"
                                            Foreground="{StaticResource TextMutedBrush}"
                                            FontSize="12"
                                            Margin="16,0,0,0"
@@ -215,7 +207,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#F7F7F8"
+            <Border Grid.Column="0" Background="{StaticResource RailBrush}"
                     BorderBrush="{StaticResource BorderMutedBrush}" BorderThickness="0,0,1,0">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="Pages"
@@ -237,7 +229,7 @@
                           Background="{StaticResource CanvasBrush}"
                           HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Auto"
-                          Padding="24"
+                          Padding="28"
                           ScrollChanged="PageScroller_ScrollChanged">
                 <StackPanel x:Name="PageHost" HorizontalAlignment="Center"/>
             </ScrollViewer>

@@ -1,21 +1,28 @@
 #define MyAppName "ClearPDF"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "ClearPDF"
 #define MyAppExeName "ClearPDF.exe"
 #define MyAppAssocName "PDF Document"
 #define MyAppAssocExt ".pdf"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
+#ifndef AppSource
+#define AppSource "C:\ClearPDF-publish\win-x64"
+#endif
+#ifndef SetupOutputDir
+#define SetupOutputDir "C:\Users\Steve\Documents"
+#endif
 
 [Setup]
 AppId={{A7C3E5F1-9B24-4D8E-A1C2-ClearPDF0001}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=
-OutputDir=C:\Users\Steve\Documents
+OutputDir={#SetupOutputDir}
 OutputBaseFilename=ClearPDF-Setup
 SetupIconFile=app-icon.ico
 WizardImageFile=inno-wizard-164x314.bmp
@@ -37,7 +44,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "associate"; Description: "Set ClearPDF as default for .pdf files"; GroupDescription: "File associations:"; Flags: unchecked
 
 [Files]
-Source: "C:\ClearPDF-publish\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Registry]
 Root: HKLM; Subkey: "Software\Classes\ClearPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey; Tasks: associate
