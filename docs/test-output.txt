@@ -1,11 +1,9 @@
   Determining projects to restore...
-  All projects are up-to-date for restore.
-  ClearPDF.Core -> /workspace/ClearPDF/src/ClearPDF.Core/bin/Debug/net8.0/ClearPDF.Core.dll
-  ClearPDF.Tests -> /workspace/ClearPDF/tests/ClearPDF.Tests/bin/Debug/net8.0/ClearPDF.Tests.dll
-Test run for /workspace/ClearPDF/tests/ClearPDF.Tests/bin/Debug/net8.0/ClearPDF.Tests.dll (.NETCoreApp,Version=v8.0)
-VSTest version 17.11.1 (x64)
-
-Starting test execution, please wait...
+  Restored /workspace/src/ClearPDF.Core/ClearPDF.Core.csproj
+  Restored /workspace/tests/ClearPDF.Tests/ClearPDF.Tests.csproj
+  ClearPDF.Core -> /workspace/src/ClearPDF.Core/bin/Debug/net8.0/ClearPDF.Core.dll
+  ClearPDF.Tests -> /workspace/tests/ClearPDF.Tests/bin/Debug/net8.0/ClearPDF.Tests.dll
+Test run for /workspace/tests/ClearPDF.Tests/bin/Debug/net8.0/ClearPDF.Tests.dll (.NETCoreApp,Version=v8.0)
 A total of 1 test files matched the specified pattern.
 
-Passed!  - Failed:     0, Passed:    19, Skipped:     0, Total:    19, Duration: 35 ms - ClearPDF.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:    53, Skipped:     0, Total:    53, Duration: 36 ms - ClearPDF.Tests.dll (net8.0)
