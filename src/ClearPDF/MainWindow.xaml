@@ -19,6 +19,7 @@
               BorderThickness="0,0,0,1"
               Padding="6,1">
             <MenuItem Header="_About">
+                <MenuItem Header="ClearPDF 1.1.0" Click="About_Click"/>
                 <MenuItem Header="Duck waffles" Click="DuckWaffles_Click"/>
             </MenuItem>
         </Menu>

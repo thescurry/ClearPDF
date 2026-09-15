@@ -1,6 +1,6 @@
 # Graphics / Steve QA gates
 
-Standing visual checks for polish. Chip owns the **1.1.0** version bump — this file is feel/QA only.
+Standing visual checks for polish. Version **1.1.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.1.0`), and tag `v1.1.0`.
 
 ## Empty Recent (release blocker)
 

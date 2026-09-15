@@ -115,6 +115,15 @@ public partial class MainWindow : Window
 
     private void Open_Click(object sender, RoutedEventArgs e) => OpenWithDialog();
 
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(
+            this,
+            ProductInfo.About + "\nA simple local PDF reader for Windows 10+.",
+            "About ClearPDF",
+            MessageBoxButton.OK);
+    }
+
     private void DuckWaffles_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new DuckWafflesWindow { Owner = this };

@@ -6,7 +6,7 @@ UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, pas
 
 ## Download (Windows)
 
-Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)**:
+Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)** (current: **v1.1.0**):
 
 1. Download `ClearPDF-Setup.exe`
 2. Run it (SmartScreen may show **Unknown publisher** once — More info → Run anyway; the build is unsigned)

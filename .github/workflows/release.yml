@@ -1,0 +1,78 @@
+name: Windows installer
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish win-x64 (self-contained)
+        run: >
+          dotnet publish src/ClearPDF/ClearPDF.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -o publish/win-x64
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile ClearPDF-Setup.exe
+        shell: pwsh
+        run: |
+          $iscc = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          $appSource = Join-Path $env:GITHUB_WORKSPACE "publish\win-x64"
+          $outDir = Join-Path $env:GITHUB_WORKSPACE "installer\out"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          & $iscc "/DAppSource=$appSource" "/DSetupOutputDir=$outDir" "installer\ClearPDF.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit $LASTEXITCODE" }
+          Get-Item (Join-Path $outDir "ClearPDF-Setup.exe") | Format-List FullName, Length
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClearPDF-Setup
+          path: installer/out/ClearPDF-Setup.exe
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ClearPDF ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: installer/out/ClearPDF-Setup.exe
+          body: |
+            ## ClearPDF 1.1.0
+
+            Lightweight Windows PDF reader (WPF + PDFium). Viewer only — view / print / save / find / password. MIT.
+
+            ### Install
+            1. Download **ClearPDF-Setup.exe** below
+            2. Run the installer
+            3. If SmartScreen warns (**Unknown publisher**), choose More info → Run anyway — this build is not code-signed
+
+            ### 1.1.0
+            - Empty Recent: max 12 rows, filenames never clip leading characters, full timestamps, accent Open pill
+            - Arc-pack chrome: one thin icon toolbar, `#F1F2F7` canvas, `#5A7FA6` accent
+            - First-open Welcome card remains deferred
+
+            Source: https://github.com/thescurry/ClearPDF

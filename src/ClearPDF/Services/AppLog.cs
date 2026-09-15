@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Text;
 
 namespace ClearPDF.Services;
@@ -33,8 +32,7 @@ public static class AppLog
     /// <summary>Optional once-per-start version line.</summary>
     public static void LogAppStart()
     {
-        var ver = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?";
-        Info($"ClearPDF {ver} start");
+        Info($"ClearPDF {global::ClearPDF.ProductInfo.Version} start");
     }
 
     private static void Write(string level, string message, Exception? ex)
