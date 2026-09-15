@@ -48,7 +48,6 @@ public partial class MainWindow : Window
     private int _findHitPage = -1;
     private PageSet _selection = PageSet.Empty;
     private readonly HashSet<int> _selectedThumbs = new();
-    private ContextMenu? _thumbContextMenu;
 
     /// <summary>Thumbnail Image controls — filled by a pipeline separate from main pages.</summary>
     private Image[] _thumbImages = Array.Empty<Image>();
@@ -400,7 +399,9 @@ public partial class MainWindow : Window
                 Margin = new Thickness(0, 0, 0, ThumbRowGapPx),
                 Cursor = Cursors.Hand,
                 Tag = pageIndex,
-                ContextMenu = ThumbContextMenu()
+                // One ContextMenu per row — WPF allows a single logical parent.
+                // Sharing a cached instance throws on the second thumb open.
+                ContextMenu = CreateThumbContextMenu()
             };
             row.Children.Add(frame);
             row.Children.Add(caption);
@@ -526,11 +527,14 @@ public partial class MainWindow : Window
         };
     }
 
-    private ContextMenu ThumbContextMenu()
+    /// <summary>
+    /// Fresh menu each call. A shared instance assigned to every thumb row
+    /// throws InvalidOperationException when opened from a second parent
+    /// (WPF ContextMenu: one logical parent). See
+    /// <see cref="ThumbContextMenuOwnership"/>.
+    /// </summary>
+    private ContextMenu CreateThumbContextMenu()
     {
-        if (_thumbContextMenu != null)
-            return _thumbContextMenu;
-
         var save = new MenuItem
         {
             Header = "Save pages as...",
@@ -543,13 +547,13 @@ public partial class MainWindow : Window
             Style = (Style)FindResource("TinyMenuItem")
         };
         print.Click += Print_Click;
-        _thumbContextMenu = new ContextMenu
+        var menu = new ContextMenu
         {
             Style = (Style)FindResource("TinyThumbMenu")
         };
-        _thumbContextMenu.Items.Add(save);
-        _thumbContextMenu.Items.Add(print);
-        return _thumbContextMenu;
+        menu.Items.Add(save);
+        menu.Items.Add(print);
+        return menu;
     }
 
     private void OnThumbLeftUp(int pageIndex, MouseButtonEventArgs e)

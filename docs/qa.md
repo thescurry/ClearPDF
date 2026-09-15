@@ -22,6 +22,17 @@ Ship version stays **1.1.0** until Chip’s bump. Graphics mocks: `docs/mocks/v1
 - Steal notes: [`docs/mocks/v12-STEAL.md`](mocks/v12-STEAL.md).
 - Empty Recent gate above is unchanged (MaxEntries=12, no leading clip, accent Open pill).
 
+## v1.2 thumb context menu (crash regression)
+
+Do **not** cache one `ContextMenu` and assign it to every thumb row. WPF allows a single logical parent; the second right-click throws `InvalidOperationException` and the dispatcher handler logs but leaves `e.Handled = false` (process exit). Core lock: `ThumbContextMenuOwnership` / `ThumbContextMenuOwnershipTests`.
+
+Manual repro that must stay green:
+
+1. Open a multi-page PDF.
+2. Right-click thumb 1 → 2-line menu (Save pages as... / Print selected).
+3. Dismiss, right-click a **different** thumb → menu appears again. App stays up.
+4. Repeat after Ctrl/Shift multi-select, and after opening a second PDF.
+
 ## Deferred (later 1.1.x)
 
 Do **not** build the first-open Welcome card from `docs/mocks/chrome-arc-intro.png` in this pass. Empty-state stays Open + Recent. Track Welcome for a later 1.1.x note.
