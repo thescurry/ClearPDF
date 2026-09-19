@@ -5,6 +5,6 @@ namespace ClearPDF;
 /// </summary>
 public static class ProductInfo
 {
-    public const string Version = "1.1.0";
-    public const string About = "ClearPDF 1.1.0";
+    public const string Version = "1.2.0";
+    public const string About = "ClearPDF 1.2.0";
 }

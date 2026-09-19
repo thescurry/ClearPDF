@@ -6,7 +6,7 @@ UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, pas
 
 ## Download (Windows)
 
-Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)** (current: **v1.1.0**):
+Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)** (current: **v1.2.0**):
 
 1. Download `ClearPDF-Setup.exe`
 2. Run it (SmartScreen may show **Unknown publisher** once — More info → Run anyway; the build is unsigned)
@@ -113,7 +113,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Zoom in/out, fit width, fit page
 - Find next/prev (extracted text)
 - Print, Save As (copy file)
-- **v1.2 page-selection** (ship version stays 1.1.0 until Chip’s checklist): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
+- **v1.2 page-selection** (ship version **1.2.0**): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
 - Password prompt for encrypted PDFs (unlock for viewing only)
 - Error banner UI
 - Bookmarks/outline when the engine exposes them (stubbed TODO if Docnet has no outline API)
