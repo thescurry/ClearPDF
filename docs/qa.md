@@ -1,6 +1,6 @@
 # Graphics / Steve QA gates
 
-Standing visual checks for polish. Version **1.1.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.1.0`), and tag `v1.1.0`.
+Standing visual checks for polish. Version **1.2.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.2.0`), and tag `v1.2.0`.
 
 ## Empty Recent (release blocker)
 
@@ -14,7 +14,7 @@ Layout notes: empty column is **520** wide (was 300 with a 320-wide Recent list,
 
 ## v1.2 page-selection chrome (does not replace the empty-state gate)
 
-Ship version stays **1.1.0** until Chip’s bump. Graphics mocks: `docs/mocks/v12-01-multiselect.png`, `v12-02-context-menu.png`, `v12-03-save-as-choice.png`.
+Ship version is **1.2.0**. Graphics mocks: `docs/mocks/v12-01-multiselect.png`, `v12-02-context-menu.png`, `v12-03-save-as-choice.png`.
 
 - One accent `#5A7FA6`. Selected thumb **border** is primary; gray page index; **checks only on selected thumbs** (beside the number, not a second fill on the page).
 - Tiny **2-line** thumb context menu: Save pages as... / Print selected.

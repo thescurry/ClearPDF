@@ -61,7 +61,7 @@ jobs:
           prerelease: false
           files: installer/out/ClearPDF-Setup.exe
           body: |
-            ## ClearPDF 1.1.0
+            ## ClearPDF 1.2.0
 
             Lightweight Windows PDF reader (WPF + PDFium). Viewer only — view / print / save / find / password. MIT.
 
@@ -70,7 +70,8 @@ jobs:
             2. Run the installer
             3. If SmartScreen warns (**Unknown publisher**), choose More info → Run anyway — this build is not code-signed
 
-            ### 1.1.0
+            ### 1.2.0
+            - Page selection: multi-select thumbs, Save pages as..., Print selected, Save As choice card
             - Empty Recent: max 12 rows, filenames never clip leading characters, full timestamps, accent Open pill
             - Arc-pack chrome: one thin icon toolbar, `#F1F2F7` canvas, `#5A7FA6` accent
             - First-open Welcome card remains deferred
