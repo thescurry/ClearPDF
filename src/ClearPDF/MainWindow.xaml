@@ -38,6 +38,9 @@
                 <Button x:Name="SaveAsButton" Style="{StaticResource ToolbarButton}" Click="SaveAs_Click" ToolTip="Save As">
                     <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE74E;"/>
                 </Button>
+                <Button x:Name="SavePagesAsButton" Style="{StaticResource ToolbarButton}" Click="SavePagesAs_Click" ToolTip="Save pages as…">
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE7C3;"/>
+                </Button>
                 <Button x:Name="PrintButton" Style="{StaticResource ToolbarButton}" Click="Print_Click" ToolTip="Print (Ctrl+P)">
                     <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE749;"/>
                 </Button>
@@ -89,6 +92,8 @@
                   VerticalAlignment="Center" Padding="0">
                 <MenuItem Header="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                           Foreground="{StaticResource IconBrush}" ToolTip="About">
+                    <MenuItem Header="Save pages as…" FontFamily="Segoe UI" FontSize="13"
+                              Click="SavePagesAs_Click"/>
                     <MenuItem Header="Duck waffles" FontFamily="Segoe UI" FontSize="13"
                               Click="DuckWaffles_Click"/>
                 </MenuItem>
@@ -233,6 +238,43 @@
                           ScrollChanged="PageScroller_ScrollChanged">
                 <StackPanel x:Name="PageHost" HorizontalAlignment="Center"/>
             </ScrollViewer>
+        </Grid>
+
+        <!-- v12-03: quiet Save as card — compact radios, no title-bar modal. -->
+        <Grid x:Name="SaveAsChoiceOverlay" Visibility="Collapsed">
+            <Border Background="#40000000" MouseLeftButtonDown="SaveAsChoiceDim_MouseDown"/>
+            <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="White" CornerRadius="8" Padding="28,24"
+                    BorderBrush="#E0E0E0" BorderThickness="1" MinWidth="360"
+                    MouseLeftButtonDown="SaveAsChoiceCard_MouseDown">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.22" Color="#000000"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Save as"
+                               FontFamily="Segoe UI" FontSize="18" FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Margin="0,0,0,18"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,22">
+                        <RadioButton x:Name="SaveAsSelectedRadio" Style="{StaticResource QuietRadio}"
+                                     Content="Selected pages" GroupName="SaveAsChoice"
+                                     IsChecked="True" Margin="0,0,24,0"/>
+                        <RadioButton x:Name="SaveAsWholeRadio" Style="{StaticResource QuietRadio}"
+                                     Content="Entire document" GroupName="SaveAsChoice"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,8,0" Click="SaveAsChoiceCancel_Click"/>
+                        <Button Style="{StaticResource PrimaryButton}" Click="SaveAsChoiceSave_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74E;"
+                                           FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Save" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Grid>
         </Grid>
     </DockPanel>

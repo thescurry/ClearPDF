@@ -101,7 +101,7 @@ Helpers: `PdfRenderScale`, `PageRenderPlanner`, `PageRasterCache<T>` in Core (un
 
 ## Runnable tests without WPF
 
-UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
+UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
 
 ## v1 scope
 
@@ -113,6 +113,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Zoom in/out, fit width, fit page
 - Find next/prev (extracted text)
 - Print, Save As (copy file)
+- **v1.2 page-selection** (ship version stays 1.1.0 until Chip’s checklist): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
 - Password prompt for encrypted PDFs (unlock for viewing only)
 - Error banner UI
 - Bookmarks/outline when the engine exposes them (stubbed TODO if Docnet has no outline API)
@@ -137,6 +138,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 |--------|------|------|
 | Empty + Recent | `docs/mocks/chrome-arc-empty.png` (v1.1) / `01-empty-open.png` | `EmptyView` in `MainWindow.xaml` |
 | Reader | `docs/mocks/chrome-arc-reader.png` (v1.1) / `02-reader.png` | `ReaderView` + one icon toolbar + status bar |
+| v1.2 thumbs / extract chrome | `docs/mocks/v12-01-multiselect.png`, `v12-02-context-menu.png`, `v12-03-save-as-choice.png` | Thumbnail multi-select, 2-line thumb menu, Save As one-liner |
 | Password | `docs/mocks/03-password.png` | `Views/PasswordDialog.xaml` |
 
 Accent: `#5A7FA6` (one muted blue — Open CTA pill, selected thumb, find hit). Canvas: `#F1F2F7` (sampled from `chrome-arc-reader.png` so the white page pops). Toolbar: one ~36px icon strip (Segoe MDL2), labels on hover. No ribbons.
@@ -156,7 +158,7 @@ ClearPDF/
   docs/mocks/
   docs/qa.md             # Graphics/Steve standing QA gates
   docs/test-output.txt   # captured `dotnet test` on Linux
-  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy
+  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)
     ClearPDF.csproj
     App.xaml
