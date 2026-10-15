@@ -18,8 +18,12 @@
               BorderBrush="{StaticResource BorderMutedBrush}"
               BorderThickness="0,0,0,1"
               Padding="6,1">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open..." Click="Open_Click"/>
+                <MenuItem Header="_Scan..." Click="Scan_Click"/>
+            </MenuItem>
             <MenuItem Header="_About">
-                <MenuItem Header="ClearPDF 1.2.0" Click="About_Click"/>
+                <MenuItem x:Name="AboutVersionItem" Header="ClearPDF 1.3.0" Click="About_Click"/>
                 <MenuItem Header="Duck waffles" Click="DuckWaffles_Click"/>
             </MenuItem>
         </Menu>
@@ -34,6 +38,9 @@
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                 <Button Style="{StaticResource ToolbarButton}" Click="Open_Click" ToolTip="Open (Ctrl+O)">
                     <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE8E5;"/>
+                </Button>
+                <Button Style="{StaticResource ToolbarButton}" Click="Scan_Click" ToolTip="Scan to PDF">
+                    <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE8FE;"/>
                 </Button>
                 <Button x:Name="SaveAsButton" Style="{StaticResource ToolbarButton}" Click="SaveAs_Click" ToolTip="Save As">
                     <TextBlock Style="{StaticResource ToolbarIcon}" Text="&#xE74E;"/>
@@ -92,6 +99,8 @@
                   VerticalAlignment="Center" Padding="0">
                 <MenuItem Header="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                           Foreground="{StaticResource IconBrush}" ToolTip="About">
+                    <MenuItem Header="Scan…" FontFamily="Segoe UI" FontSize="13"
+                              Click="Scan_Click"/>
                     <MenuItem Header="Save pages as…" FontFamily="Segoe UI" FontSize="13"
                               Click="SavePagesAs_Click"/>
                     <MenuItem Header="Duck waffles" FontFamily="Segoe UI" FontSize="13"
