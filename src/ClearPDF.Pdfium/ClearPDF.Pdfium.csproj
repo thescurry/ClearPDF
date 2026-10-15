@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ClearPDF.Pdfium</RootNamespace>
+    <AssemblyName>ClearPDF.Pdfium</AssemblyName>
+    <Description>UI-free Docnet/PDFium raster engine for ClearPDF (WPF and Avalonia)</Description>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- Intel Mac publish: Docnet.Core.targets copies osx-x64 pdfium.dylib. -->
+    <DocnetRuntime Condition="'$(RuntimeIdentifier)' == 'osx-x64'">osx-x64</DocnetRuntime>
+    <DocnetRuntime Condition="'$(RuntimeIdentifier)' == 'osx' or '$(RuntimeIdentifier)' == 'osx-x64'">osx</DocnetRuntime>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ClearPDF.Core\ClearPDF.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ClearPDF.Tests" />
+  </ItemGroup>
+
+</Project>

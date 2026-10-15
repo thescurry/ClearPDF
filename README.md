@@ -1,6 +1,6 @@
 # ClearPDF
 
-Simple local PDF reader for **Windows 10+**. WPF · .NET 8 · no ribbons, AI, or cloud.
+Simple local PDF reader for **Windows 10+** (WPF) and an **Intel macOS MVP** (Avalonia). .NET 8 · no ribbons, AI, or cloud.
 
 UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal.
 
@@ -14,6 +14,18 @@ Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPD
 
 Self-contained ~166 MB on disk after install. No .NET install required.
 
+## Download (Intel macOS MVP)
+
+Unsigned `ClearPDF-macos-x64.dmg` from the **macOS Intel** GitHub Actions workflow (`macos-13`, osx-x64 self-contained). Gatekeeper will warn — the build is unsigned unless repo secrets for Developer ID + notary are present. **Do not sign into Apple** to produce the artifact; signing/notarization is skipped when those secrets are absent.
+
+```bash
+dotnet publish src/ClearPDF.Desktop/ClearPDF.Desktop.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64
+./packaging/macos/bundle-app.sh publish/osx-x64 dist/macos
+# on a Mac:
+./packaging/macos/create-dmg.sh dist/macos/ClearPDF.app dist/macos/ClearPDF-macos-x64.dmg
+```
+
+MVP scope: open / view / save / print, Mac shortcuts (⌘O ⌘S ⌘P ⌘W ⌘+/−/0), dark mode follows System Settings. **Scanner is out of scope** (see Windows PR #10 — do not merge that work into this branch).
 
 ## Engine choice
 
@@ -158,8 +170,12 @@ ClearPDF/
   docs/mocks/
   docs/qa.md             # Graphics/Steve standing QA gates
   docs/test-output.txt   # captured `dotnet test` on Linux
-  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
+  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract, MacShortcuts, CupsPrintArgs, DesktopTheme
+  src/ClearPDF.Pdfium/   # net8.0 — Docnet/PDFium raster engine (UI-free BGRA)
+  src/ClearPDF.Desktop/  # net8.0 Avalonia Intel Mac shell (refs Core + Pdfium)
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)
+  packaging/macos/       # ClearPDF.app + .dmg + optional sign/notarize (secrets-gated)
+
     ClearPDF.csproj
     App.xaml
     MainWindow.xaml

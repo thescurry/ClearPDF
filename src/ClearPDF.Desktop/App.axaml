@@ -1,0 +1,19 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ClearPDF.Desktop.App"
+             Name="ClearPDF"
+             RequestedThemeVariant="Default">
+    <!-- RequestedThemeVariant=Default follows macOS light/dark (DesktopTheme.SystemVariant). -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About ClearPDF" Click="AboutClicked"/>
+        </NativeMenu>
+    </NativeMenu.Menu>
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+    <Application.Resources>
+        <Color x:Key="AccentColor">#5A7FA6</Color>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+    </Application.Resources>
+</Application>

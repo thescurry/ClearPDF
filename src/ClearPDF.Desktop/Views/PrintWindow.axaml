@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ClearPDF.Desktop.Views.PrintWindow"
+        Title="Print"
+        Width="380" Height="240"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" x:Name="SummaryText"
+                   TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" Click="Cancel_Click" Width="88"/>
+            <Button Content="Print" Click="Print_Click" Width="88"
+                    Background="{DynamicResource AccentBrush}" Foreground="White"/>
+        </StackPanel>
+        <StackPanel Spacing="8">
+            <RadioButton x:Name="AllRadio" Content="All pages" IsChecked="True"
+                         GroupName="range"/>
+            <RadioButton x:Name="CurrentRadio" Content="Current page"
+                         GroupName="range"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <RadioButton x:Name="RangeRadio" Content="Pages"
+                             GroupName="range" VerticalAlignment="Center"/>
+                <TextBox x:Name="FromBox" Width="48" Watermark="From"/>
+                <TextBlock Text="–" VerticalAlignment="Center"/>
+                <TextBox x:Name="ToBox" Width="48" Watermark="To"/>
+            </StackPanel>
+        </StackPanel>
+    </DockPanel>
+</Window>

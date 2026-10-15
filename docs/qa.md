@@ -33,6 +33,16 @@ Manual repro that must stay green:
 3. Dismiss, right-click a **different** thumb → menu appears again. App stays up.
 4. Repeat after Ctrl/Shift multi-select, and after opening a second PDF.
 
+## Intel macOS MVP (Avalonia, osx-x64)
+
+Gate: unsigned `ClearPDF-macos-x64.dmg` from the **macOS Intel** workflow (`macos-13` standard runner). Do not sign into Apple. Signing/notarization stays off unless repo secrets exist.
+
+- [ ] Open PDF (dialog, recent, drop, Finder Open With / argv)
+- [ ] View pages, scroll, zoom / fit, dark mode follows System Settings
+- [ ] Save As copies the file; Print uses the system `lp` queue
+- [ ] Mac shortcuts: ⌘O ⌘S ⌘P ⌘W ⌘+ ⌘- ⌘0
+- [ ] Scanner is out of scope (do not merge or rebase onto PR #10)
+
 ## Deferred (later 1.1.x)
 
 Do **not** build the first-open Welcome card from `docs/mocks/chrome-arc-intro.png` in this pass. Empty-state stays Open + Recent. Track Welcome for a later 1.1.x note.
