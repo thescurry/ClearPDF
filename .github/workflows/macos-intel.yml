@@ -7,12 +7,12 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Standard GitHub-hosted runner only (macos-13 = Intel x86_64).
-# No self-hosted, no larger/metal images.
+# Standard GitHub-hosted runner only (macos-15-intel = Intel x86_64).
+# macos-13 was retired 2025-12-04. No self-hosted / larger / metal images.
 jobs:
   macos-intel:
     name: osx-x64 DMG
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
 

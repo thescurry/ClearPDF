@@ -16,7 +16,7 @@ Self-contained ~166 MB on disk after install. No .NET install required.
 
 ## Download (Intel macOS MVP)
 
-Unsigned `ClearPDF-macos-x64.dmg` from the **macOS Intel** GitHub Actions workflow (`macos-13`, osx-x64 self-contained). Gatekeeper will warn — the build is unsigned unless repo secrets for Developer ID + notary are present. **Do not sign into Apple** to produce the artifact; signing/notarization is skipped when those secrets are absent.
+Unsigned `ClearPDF-macos-x64.dmg` from the **macOS Intel** GitHub Actions workflow (`macos-15-intel`, osx-x64 self-contained). Gatekeeper will warn — the build is unsigned unless repo secrets for Developer ID + notary are present. **Do not sign into Apple** to produce the artifact; signing/notarization is skipped when those secrets are absent.
 
 ```bash
 dotnet publish src/ClearPDF.Desktop/ClearPDF.Desktop.csproj -c Release -r osx-x64 --self-contained true -o publish/osx-x64

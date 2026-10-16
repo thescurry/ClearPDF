@@ -35,7 +35,7 @@ Manual repro that must stay green:
 
 ## Intel macOS MVP (Avalonia, osx-x64)
 
-Gate: unsigned `ClearPDF-macos-x64.dmg` from the **macOS Intel** workflow (`macos-13` standard runner). Do not sign into Apple. Signing/notarization stays off unless repo secrets exist.
+Gate: unsigned `ClearPDF-macos-x64.dmg` from the **macOS Intel** workflow (`macos-15-intel` standard runner). Do not sign into Apple. Signing/notarization stays off unless repo secrets exist.
 
 - [ ] Open PDF (dialog, recent, drop, Finder Open With / argv)
 - [ ] View pages, scroll, zoom / fit, dark mode follows System Settings
