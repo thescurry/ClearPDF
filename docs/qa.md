@@ -1,6 +1,14 @@
 # Graphics / Steve QA gates
 
-Standing visual checks for polish. Version **1.2.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.2.0`), and tag `v1.2.0`.
+Standing visual checks for polish. Version **1.3.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.3.0`). Do not tag a release from this note unless shipping.
+
+## v1.3 Scan to PDF (Windows hardware)
+
+Gate: **File → Scan…** (empty window) and toolbar Scan (reader).
+
+- Dialog: scanner list, source (flatbed / feeder), color, DPI 150/200/300, Scan, thumbnail strip, Scan more, Save as new PDF / Append to open PDF.
+- Live check (not covered by `dotnet test`): **HP ENVY 7640** flatbed; **HP Color LaserJet MFP M277dw** feeder (empty feeder should message, not crash). Device-busy and Stop/cancel between pages.
+- Append to an open PDF must leave a valid file (temp + replace); Save as new must not overwrite the open source path unless the user picks it.
 
 ## Empty Recent (release blocker)
 

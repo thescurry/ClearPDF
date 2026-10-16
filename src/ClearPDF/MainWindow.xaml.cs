@@ -78,6 +78,7 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        AboutVersionItem.Header = ProductInfo.About;
         RefreshRecentList();
         // Explorer "Open with" / double-click / `ClearPDF.exe "path.pdf"` — argv after exe.
         var cliPdf = CommandLinePdfArgs.TryGetPdfFromProcessCommandLine();
@@ -119,6 +120,22 @@ public partial class MainWindow : Window
     }
 
     private void Open_Click(object sender, RoutedEventArgs e) => OpenWithDialog();
+
+    private void Scan_Click(object sender, RoutedEventArgs e)
+    {
+        HideSaveAsChoice();
+        try
+        {
+            var dlg = new ScanDialog(ScanDialog.CreateProvider(), _doc?.FilePath) { Owner = this };
+            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.SavedPath))
+                OpenPath(dlg.SavedPath);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Scan dialog failed", ex);
+            ShowError(ex.Message);
+        }
+    }
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
