@@ -81,7 +81,11 @@ public class CommandLinePdfArgsTests : IDisposable
         {
             Directory.SetCurrentDirectory(_dir);
             var result = CommandLinePdfArgs.TryGetFirstExistingPdf(new[] { "sample doc.pdf" });
-            Assert.Equal(Path.GetFullPath(_pdfPath), result);
+            Assert.NotNull(result);
+            Assert.True(File.Exists(result));
+            // macOS: GetTempPath() is often /var/... while GetFullPath after
+            // SetCurrentDirectory canonicalizes to /private/var/...
+            Assert.True(SamePath(Path.GetFullPath(_pdfPath), result));
         }
         finally
         {
@@ -102,5 +106,23 @@ public class CommandLinePdfArgsTests : IDisposable
         var argv = new[] { @"C:\Program Files\ClearPDF\ClearPDF.exe", _pdfPath };
         var result = CommandLinePdfArgs.TryGetFirstExistingPdf(argv.Skip(1));
         Assert.Equal(Path.GetFullPath(_pdfPath), result);
+    }
+
+    /// <summary>
+    /// macOS: GetTempPath() is often /var/... while GetFullPath after
+    /// SetCurrentDirectory canonicalizes to /private/var/...
+    /// </summary>
+    private static bool SamePath(string expected, string actual)
+    {
+        static string Norm(string p)
+        {
+            p = Path.GetFullPath(p);
+            const string prefix = "/private";
+            if (p.StartsWith(prefix + "/", StringComparison.Ordinal))
+                return p[prefix.Length..];
+            return p;
+        }
+
+        return string.Equals(Norm(expected), Norm(actual), StringComparison.OrdinalIgnoreCase);
     }
 }
