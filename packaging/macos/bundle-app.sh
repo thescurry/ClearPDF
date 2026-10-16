@@ -24,10 +24,13 @@ if command -v sips >/dev/null 2>&1 && command -v iconutil >/dev/null 2>&1 && [[ 
   ICONSET="$(mktemp -d)/ClearPDF.iconset"
   mkdir -p "$ICONSET"
   for sz in 16 32 128 256 512; do
-    sips -z "$sz" "$sz" "$ICON_SRC" --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
-    sips -z $((sz * 2)) $((sz * 2)) "$ICON_SRC" --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
+    # macos-15 sips warns and writes JPEG unless format is forced to png.
+    sips -s format png -z "$sz" "$sz" "$ICON_SRC" --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
+    sips -s format png -z $((sz * 2)) $((sz * 2)) "$ICON_SRC" --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
   done
-  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/ClearPDF.icns"
+  if ! iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/ClearPDF.icns"; then
+    echo "iconutil failed — app will use the embedded PNG icon"
+  fi
 else
   echo "sips/iconutil not available — app will use the embedded PNG icon"
 fi
