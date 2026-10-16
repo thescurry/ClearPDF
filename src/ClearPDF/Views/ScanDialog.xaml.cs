@@ -195,6 +195,7 @@ public partial class ScanDialog : Window
         }
         finally
         {
+            (scanner as IDisposable)?.Dispose();
             SetScanning(false);
             _scanCts.Dispose();
             _scanCts = null;

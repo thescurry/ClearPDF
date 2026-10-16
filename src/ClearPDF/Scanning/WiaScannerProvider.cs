@@ -17,14 +17,16 @@ internal sealed class WiaScannerProvider : IScannerProvider
 {
     public IReadOnlyList<ScanDeviceInfo> ListDevices()
     {
+        object? manager = null;
         try
         {
-            dynamic manager = WiaCom.Create("WIA.DeviceManager");
+            manager = WiaCom.Create("WIA.DeviceManager");
+            dynamic dyn = manager;
             var list = new List<ScanDeviceInfo>();
-            int count = manager.DeviceInfos.Count;
+            int count = dyn.DeviceInfos.Count;
             for (var i = 1; i <= count; i++)
             {
-                dynamic info = manager.DeviceInfos[i];
+                dynamic info = dyn.DeviceInfos[i];
                 if (Convert.ToInt32(info.Type) != WiaCom.DeviceTypeScanner)
                     continue;
                 list.Add(ReadDevice(info));
@@ -36,20 +38,30 @@ internal sealed class WiaScannerProvider : IScannerProvider
         {
             throw WiaCom.Wrap(ex, ScanSource.Flatbed);
         }
+        finally
+        {
+            WiaCom.Release(manager);
+        }
     }
 
     public IScanner Open(string deviceId)
     {
+        object? manager = null;
         try
         {
-            dynamic manager = WiaCom.Create("WIA.DeviceManager");
-            int count = manager.DeviceInfos.Count;
+            manager = WiaCom.Create("WIA.DeviceManager");
+            dynamic dyn = manager;
+            int count = dyn.DeviceInfos.Count;
             for (var i = 1; i <= count; i++)
             {
-                dynamic info = manager.DeviceInfos[i];
+                dynamic info = dyn.DeviceInfos[i];
                 string id = Convert.ToString(info.DeviceID) ?? string.Empty;
                 if (string.Equals(id, deviceId, StringComparison.OrdinalIgnoreCase))
-                    return new WiaScanner(info, ReadDevice(info));
+                {
+                    var scanner = new WiaScanner(info, ReadDevice(info), manager);
+                    manager = null; // scanner owns the COM manager
+                    return scanner;
+                }
             }
 
             throw new ScannerException(ScannerErrorKind.DeviceNotFound);
@@ -61,6 +73,10 @@ internal sealed class WiaScannerProvider : IScannerProvider
         catch (Exception ex)
         {
             throw WiaCom.Wrap(ex, ScanSource.Flatbed);
+        }
+        finally
+        {
+            WiaCom.Release(manager);
         }
     }
 
@@ -113,17 +129,25 @@ internal sealed class WiaScannerProvider : IScannerProvider
 }
 
 [SupportedOSPlatform("windows")]
-internal sealed class WiaScanner : IScanner
+internal sealed class WiaScanner : IScanner, IDisposable
 {
     private readonly dynamic _info;
+    private object? _manager;
 
-    public WiaScanner(dynamic info, ScanDeviceInfo device)
+    public WiaScanner(dynamic info, ScanDeviceInfo device, object? manager)
     {
         _info = info;
+        _manager = manager;
         Device = device;
     }
 
     public ScanDeviceInfo Device { get; }
+
+    public void Dispose()
+    {
+        WiaCom.Release(_manager);
+        _manager = null;
+    }
 
     public async Task<IReadOnlyList<ScannedPage>> ScanAsync(
         ScanSettings settings,
@@ -230,36 +254,43 @@ internal sealed class WiaScanner : IScanner
 
     private static ScannedPage TransferPage(dynamic item, ScanSettings settings)
     {
-        dynamic imageFile;
+        object? imageFile = null;
         try
         {
-            imageFile = item.Transfer(WiaCom.JpegFormat);
-        }
-        catch (Exception)
-        {
-            imageFile = item.Transfer();
-        }
+            try
+            {
+                imageFile = item.Transfer(WiaCom.JpegFormat);
+            }
+            catch (Exception)
+            {
+                imageFile = item.Transfer();
+            }
 
-        byte[] bytes = WiaCom.ReadBinary(imageFile);
-        if (bytes.Length == 0)
-            throw new ScannerException(ScannerErrorKind.Unknown, "The scanner returned an empty page.");
+            byte[] bytes = WiaCom.ReadBinary(imageFile);
+            if (bytes.Length == 0)
+                throw new ScannerException(ScannerErrorKind.Unknown, "The scanner returned an empty page.");
 
-        if (!ScanImageHeader.TryRead(bytes, out var width, out var height, out var format))
-        {
-            format = ScanImageFormat.Jpeg;
-            width = Math.Max(1, settings.Dpi * 8);
-            height = Math.Max(1, settings.Dpi * 11);
+            if (!ScanImageHeader.TryRead(bytes, out var width, out var height, out var format))
+            {
+                format = ScanImageFormat.Jpeg;
+                width = Math.Max(1, settings.Dpi * 8);
+                height = Math.Max(1, settings.Dpi * 11);
+            }
+
+            return new ScannedPage
+            {
+                ImageBytes = bytes,
+                Format = format,
+                PixelWidth = width,
+                PixelHeight = height,
+                Dpi = Math.Max(1, settings.Dpi),
+                ColorMode = settings.ColorMode
+            };
         }
-
-        return new ScannedPage
+        finally
         {
-            ImageBytes = bytes,
-            Format = format,
-            PixelWidth = width,
-            PixelHeight = height,
-            Dpi = Math.Max(1, settings.Dpi),
-            ColorMode = settings.ColorMode
-        };
+            WiaCom.Release(imageFile);
+        }
     }
 }
 
