@@ -1,0 +1,111 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ClearPDF.Desktop.Views.MainWindow"
+        Title="ClearPDF"
+        Width="1100" Height="720"
+        MinWidth="720" MinHeight="480"
+        Icon="/Assets/app-icon.png"
+        KeyDown="Window_KeyDown">
+    <DockPanel>
+        <Menu x:Name="AppMenu" DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="Open…" InputGesture="Ctrl+O" Click="Open_Click"/>
+                <MenuItem Header="Save As…" InputGesture="Ctrl+S" Click="SaveAs_Click"/>
+                <Separator/>
+                <MenuItem Header="Print…" InputGesture="Ctrl+P" Click="Print_Click"/>
+                <MenuItem Header="Close" InputGesture="Ctrl+W" Click="CloseDoc_Click"/>
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="Zoom In" InputGesture="Ctrl++" Click="ZoomIn_Click"/>
+                <MenuItem Header="Zoom Out" InputGesture="Ctrl+-" Click="ZoomOut_Click"/>
+                <MenuItem Header="Actual Size" InputGesture="Ctrl+0" Click="ZoomReset_Click"/>
+                <MenuItem Header="Fit Width" Click="FitWidth_Click"/>
+                <MenuItem Header="Fit Page" Click="FitPage_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About ClearPDF" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <Border x:Name="ToolbarBorder" DockPanel.Dock="Top" Padding="8,4"
+                BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                IsVisible="False">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Content="Open" Click="Open_Click" ToolTip.Tip="Open (⌘O)"/>
+                <Button Content="Save As" Click="SaveAs_Click" ToolTip.Tip="Save As (⌘S)"/>
+                <Button Content="Print" Click="Print_Click" ToolTip.Tip="Print (⌘P)"/>
+                <Separator Width="8"/>
+                <Button Content="−" Click="ZoomOut_Click" ToolTip.Tip="Zoom out (⌘-)"/>
+                <Button x:Name="ZoomLabel" Content="100%" Click="ZoomReset_Click" MinWidth="56"
+                        ToolTip.Tip="Actual size (⌘0)"/>
+                <Button Content="+" Click="ZoomIn_Click" ToolTip.Tip="Zoom in (⌘+)"/>
+                <Button Content="Fit width" Click="FitWidth_Click"/>
+                <Button Content="Fit page" Click="FitPage_Click"/>
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="StatusBar" DockPanel.Dock="Bottom" Padding="16,4"
+                BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                IsVisible="False">
+            <Grid>
+                <TextBlock x:Name="PageStatusText" Text="1 / 1" HorizontalAlignment="Left"/>
+                <TextBlock x:Name="ZoomStatusText" Text="100%" HorizontalAlignment="Right"/>
+            </Grid>
+        </Border>
+
+        <Border x:Name="ErrorBanner" DockPanel.Dock="Top" Background="#FDECEA"
+                Padding="12,8" IsVisible="False">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Dismiss" Click="DismissError_Click"/>
+                <TextBlock x:Name="ErrorBannerText" TextWrapping="Wrap" Foreground="#8A1F11"
+                           VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <Grid>
+            <ScrollViewer x:Name="EmptyView" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Width="520" Margin="0,48">
+                    <TextBlock Text="ClearPDF" FontSize="28" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="Open a PDF to read, save, or print. Dark mode follows the system."
+                               TextWrapping="Wrap" HorizontalAlignment="Center" Opacity="0.7"
+                               TextAlignment="Center" Margin="0,0,0,20"/>
+                    <Button Content="Open PDF" Click="Open_Click"
+                            HorizontalAlignment="Center"
+                            Padding="32,8" CornerRadius="20"
+                            Background="{DynamicResource AccentBrush}" Foreground="White"/>
+                    <TextBlock Text="Recent" FontWeight="SemiBold" Margin="0,28,0,8"/>
+                    <TextBlock x:Name="NoRecentText" Text="No recent files"
+                               Opacity="0.6" IsVisible="True"/>
+                    <ItemsControl x:Name="RecentList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="0,4" Tag="{Binding Path}"
+                                        Click="RecentItem_Click">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding RelativeTime}"
+                                                   Opacity="0.6" Margin="12,0,0,0"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <ScrollViewer x:Name="PageScroller" IsVisible="False"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          ScrollChanged="PageScroller_ScrollChanged">
+                <StackPanel x:Name="PageHost" Margin="28" Spacing="16"
+                            HorizontalAlignment="Center"/>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>
