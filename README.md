@@ -1,6 +1,6 @@
 # ClearPDF
 
-Simple local PDF reader for **Windows 10+**. WPF · .NET 8 · no ribbons, AI, or cloud.
+Simple local PDF reader for **Windows 10+** and **Intel macOS 12+**. WPF / Avalonia · .NET 8 · no ribbons, AI, or cloud.
 
 UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal.
 
@@ -14,6 +14,17 @@ Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPD
 
 Self-contained ~166 MB on disk after install. No .NET install required.
 
+## Download (Intel macOS, unsigned)
+
+CI uploads an unsigned `ClearPDF.app` zip (`ClearPDF-macos-x64-app`) on each pull request. Printing is not included on Mac.
+
+**First launch (Gatekeeper):** the app is unsigned, so macOS will block a normal double-click.
+
+1. Unzip `ClearPDF-macos-x64.zip`
+2. Right-click `ClearPDF.app` → **Open** → **Open**
+3. Later opens can use a normal double-click
+
+If Finder still says the app is damaged, that is usually quarantine on the zip. In Terminal: `xattr -dr com.apple.quarantine ClearPDF.app`
 
 ## Engine choice
 
@@ -51,7 +62,15 @@ dotnet test
 # equivalent: dotnet test tests/ClearPDF.Tests/ClearPDF.Tests.csproj
 ```
 
-On non-Windows, the WPF project is a no-op stub so solution-level `dotnet test` only exercises `ClearPDF.Core`.
+On non-Windows, the WPF project is a no-op stub so solution-level `dotnet test` only exercises `ClearPDF.Core`. The Avalonia Mac project (`src/ClearPDF.Mac`) builds on any OS with the .NET 8 SDK.
+
+Intel Mac unsigned `.app` (self-contained osx-x64):
+
+```bash
+chmod +x packaging/macos/*.sh
+./packaging/macos/build-unsigned-app.sh
+# -> dist/macos/ClearPDF.app and dist/macos/ClearPDF-macos-x64.zip
+```
 
 ## Open from Explorer / command line
 
@@ -70,9 +89,10 @@ Docnet.Core needs **`pdfium.dll`** (and related natives) at runtime on Windows.
 1. `dotnet restore` / `dotnet build` pulls Docnet.Core. Depending on package version, natives may arrive via runtime assets or a companion package.
 2. If the app starts but shows the **stub page** banner (“PDFium natives not loaded”), copy `pdfium.dll` next to `ClearPDF.exe` (usually `src\ClearPDF\bin\Debug\net8.0-windows\`).
 3. Official / community native builds: [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) (pick the Windows x64 build matching your RID).
-4. On non-Windows scaffold machines, the factory **probes** for natives and falls back to `StubPdfDocument` so the UI shell still opens. Real render/find/print quality needs Win10 + natives.
+4. On Linux scaffold machines, the factory **probes** for natives and falls back to `StubPdfDocument` so the UI shell still opens. Real render/find quality needs Windows or macOS + natives. Printing remains Windows-only.
+5. On Intel macOS, Docnet ships `pdfium.dylib` under `runtimes/osx-x64/native/`. The bundle script copies it next to the executable inside `ClearPDF.app`.
 
-Factory entry point: `DocnetPdfDocumentFactory` in `src/ClearPDF/Services/DocnetPdfDocument.cs`.
+Factory entry point: `DocnetPdfDocumentFactory` in `src/ClearPDF.Core/Services/DocnetPdfDocument.cs`.
 
 ## Logging
 
