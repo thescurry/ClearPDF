@@ -80,6 +80,22 @@ public class ScanSessionTests
     }
 
     [Fact]
+    public void Replace_swaps_the_page_at_index()
+    {
+        var session = Session(1, 2, 3);
+        session.Replace(1, ScanTestPages.Solid(4, 6, 150, tag: 9));
+        Assert.Equal(new[] { 1, 9, 3 }, session.Pages.Select(ScanTestPages.Tag));
+    }
+
+    [Fact]
+    public void Insert_puts_a_page_at_the_index()
+    {
+        var session = Session(1, 3);
+        session.Insert(1, ScanTestPages.Solid(4, 6, 150, tag: 2));
+        Assert.Equal(new[] { 1, 2, 3 }, session.Pages.Select(ScanTestPages.Tag));
+    }
+
+    [Fact]
     public void Clear_empties_the_session()
     {
         var session = Session(1, 2);

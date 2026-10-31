@@ -70,6 +70,21 @@ public sealed class ScanSession
         _pages[index] = _pages[index].RotateBy(deltaDegrees);
     }
 
+    public void Replace(int index, ScannedPage page)
+    {
+        EnsureIndex(index);
+        ArgumentNullException.ThrowIfNull(page);
+        _pages[index] = page;
+    }
+
+    public void Insert(int index, ScannedPage page)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        if (index < 0 || index > _pages.Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        _pages.Insert(index, page);
+    }
+
     public void Clear() => _pages.Clear();
 
     private void EnsureIndex(int index)

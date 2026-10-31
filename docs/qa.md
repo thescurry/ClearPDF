@@ -4,11 +4,13 @@ Standing visual checks for polish. Version **1.3.0** is set together in csproj /
 
 ## v1.3 Scan to PDF (Windows hardware)
 
-Gate: **File → Scan…** (empty window) and toolbar Scan (reader).
+Gate: **File → Scan…** (empty window), toolbar Scan (reader), **Ctrl+Shift+S**.
 
-- Dialog: scanner list, source (flatbed / feeder), color, DPI 150/200/300, Scan, thumbnail strip, Scan more, Save as new PDF / Append to open PDF.
-- Live check (not covered by `dotnet test`): **HP ENVY 7640** flatbed; **HP Color LaserJet MFP M277dw** feeder (empty feeder should message, not crash). Device-busy and Stop/cancel between pages.
-- Append to an open PDF must leave a valid file (temp + replace); Save as new must not overwrite the open source path unless the user picks it.
+- Dialog: remembered scanner, source (flatbed / feeder), color, DPI 150/200/300, one-click Scan, live thumbnails, Add more pages, Save as new PDF / Add to open PDF (start / after page / end).
+- Per page: rotate, drag-reorder, delete, rescan, crop, trim. Toggles: drop blanks, auto-straighten, trim margins.
+- Live check (not covered by `dotnet test`): **HP ENVY 7640** flatbed loop; **HP Color LaserJet MFP M277dw** feeder + duplex. Empty feeder, paper jam, device-busy, and Stop/cancel between pages should speak plainly, not crash.
+- Insert / save must leave a valid file (temp + replace); Save as new must not overwrite the open source path unless the user picks it.
+- Without a scanner: WIA list is empty → friendly “No scanner found”. On machines where WIA is missing, mock HP devices appear so the strip can still be exercised.
 
 ## Empty Recent (release blocker)
 

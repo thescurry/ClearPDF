@@ -57,6 +57,73 @@ public static class ScannedPdfBuilder
         });
     }
 
+    /// <summary>
+    /// Insert scanned pages at <paramref name="insertAt"/> (0 = before the
+    /// first existing page; <c>CountPages</c> = append).
+    /// </summary>
+    public static void Insert(
+        IReadOnlyList<ScannedPage> pages,
+        string sourcePdfPath,
+        int insertAt,
+        string? destinationPath = null)
+    {
+        EnsurePages(pages);
+        if (string.IsNullOrWhiteSpace(sourcePdfPath))
+            throw new ArgumentException("Source PDF path is required.", nameof(sourcePdfPath));
+        if (!File.Exists(sourcePdfPath))
+            throw new FileNotFoundException("Source PDF was not found.", sourcePdfPath);
+        if (insertAt < 0)
+            throw new ArgumentOutOfRangeException(nameof(insertAt));
+
+        EnsureCodePages();
+        var dest = string.IsNullOrWhiteSpace(destinationPath) ? sourcePdfPath : destinationPath;
+        var sourceBytes = File.ReadAllBytes(sourcePdfPath);
+
+        AtomicFileReplace.Write(dest, tmp =>
+        {
+            using var input = new MemoryStream(sourceBytes, writable: false);
+            using var source = PdfReader.Open(input, PdfDocumentOpenMode.Import);
+            var at = Math.Clamp(insertAt, 0, source.PageCount);
+            using var document = new PdfDocument();
+            document.Info.Title = source.Info.Title;
+            document.Info.Creator = "ClearPDF";
+            for (var i = 0; i < at; i++)
+                document.AddPage(source.Pages[i]);
+            AddPages(document, pages);
+            for (var i = at; i < source.PageCount; i++)
+                document.AddPage(source.Pages[i]);
+            document.Save(tmp);
+        });
+    }
+
+    public static int CountPages(string pdfPath)
+    {
+        if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
+            return 0;
+        EnsureCodePages();
+        using var document = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
+        return document.PageCount;
+    }
+
+    public static int ResolveInsertIndex(ScanInsertMode mode, int afterPage1Based, int openPageCount)
+    {
+        var count = Math.Max(0, openPageCount);
+        switch (mode)
+        {
+            case ScanInsertMode.Start:
+                return 0;
+            case ScanInsertMode.End:
+                return count;
+            case ScanInsertMode.AfterPage:
+                return Math.Clamp(afterPage1Based, 0, count);
+            default:
+            {
+                ScanInsertMode unreachable = mode;
+                throw new ArgumentOutOfRangeException(nameof(mode), unreachable, null);
+            }
+        }
+    }
+
     private static void AddPages(PdfDocument document, IReadOnlyList<ScannedPage> pages)
     {
         foreach (var page in pages)

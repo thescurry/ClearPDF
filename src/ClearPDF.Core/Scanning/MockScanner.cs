@@ -101,7 +101,39 @@ public sealed class MockScanner : IScanner
             PixelWidth = Math.Max(1, width),
             PixelHeight = Math.Max(1, height),
             Dpi = Math.Max(1, dpi),
-            ColorMode = colorMode
+            ColorMode = colorMode,
+            RasterRgb = rgb,
+            RasterWidth = swatch,
+            RasterHeight = swatch
+        };
+    }
+
+    /// <summary>Page whose raster size matches <paramref name="width"/> × <paramref name="height"/>.</summary>
+    public static ScannedPage CreateRasterPage(
+        int width,
+        int height,
+        int dpi,
+        ScanColorMode colorMode,
+        byte[] rgb)
+    {
+        ArgumentNullException.ThrowIfNull(rgb);
+        if (width <= 0 || height <= 0)
+            throw new ArgumentOutOfRangeException(nameof(width));
+        if (rgb.Length < width * height * 3)
+            throw new ArgumentException("RGB buffer is too small.", nameof(rgb));
+
+        var jpeg = ScanJpegEncoder.EncodeRgb(rgb, width, height, colorMode);
+        return new ScannedPage
+        {
+            ImageBytes = jpeg,
+            Format = ScanImageFormat.Jpeg,
+            PixelWidth = width,
+            PixelHeight = height,
+            Dpi = Math.Max(1, dpi),
+            ColorMode = colorMode,
+            RasterRgb = rgb,
+            RasterWidth = width,
+            RasterHeight = height
         };
     }
 
@@ -127,15 +159,19 @@ public sealed class MockScanner : IScanner
             throw new ScannerException(fail);
 
         var pages = new List<ScannedPage>();
-        var total = Queue.Count;
-        for (var i = 0; i < Queue.Count; i++)
+        var limit = settings.MaxPages is > 0
+            ? Math.Min(Queue.Count, settings.MaxPages.Value)
+            : Queue.Count;
+        var total = limit;
+        for (var i = 0; i < limit; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (Error is { } kind && i >= ErrorAfterPages && ErrorAfterPages > 0)
                 throw new ScannerException(kind);
 
-            pages.Add(ClonePage(Queue[i], settings));
-            var report = new ScanProgress(pages.Count, total, $"Page {pages.Count}");
+            var page = ClonePage(Queue[i], settings);
+            pages.Add(page);
+            var report = new ScanProgress(pages.Count, total, $"Page {pages.Count}", page);
             ProgressReports.Add(report);
             progress?.Report(report);
             await Task.Yield();
@@ -154,8 +190,10 @@ public sealed class MockScanner : IScanner
     private static ScannedPage ClonePage(ScannedPage source, ScanSettings settings) =>
         source with
         {
+            Id = Guid.NewGuid(),
             Dpi = settings.Dpi > 0 ? settings.Dpi : source.Dpi,
             ColorMode = settings.ColorMode,
-            ImageBytes = (byte[])source.ImageBytes.Clone()
+            ImageBytes = (byte[])source.ImageBytes.Clone(),
+            RasterRgb = source.RasterRgb == null ? null : (byte[])source.RasterRgb.Clone()
         };
 }

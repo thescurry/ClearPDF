@@ -23,9 +23,11 @@ public sealed class ScannerException : Exception
             case ScannerErrorKind.Cancelled:
                 return "Scan was cancelled.";
             case ScannerErrorKind.DeviceNotFound:
-                return "The scanner is not available.";
+                return "No scanner found. Plug it in, switch it on, and try again.";
             case ScannerErrorKind.Communication:
-                return "Could not talk to the scanner.";
+                return "Could not talk to the scanner. Check the cable and that no other app is using it.";
+            case ScannerErrorKind.PaperJam:
+                return "Paper jam. Clear the feeder and try again.";
             case ScannerErrorKind.Unknown:
                 return "Scan failed.";
             default:

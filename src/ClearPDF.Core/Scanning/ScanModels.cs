@@ -28,7 +28,15 @@ public enum ScannerErrorKind
     Cancelled = 3,
     DeviceNotFound = 4,
     Communication = 5,
-    Unknown = 6
+    Unknown = 6,
+    PaperJam = 7
+}
+
+public enum ScanInsertMode
+{
+    Start = 0,
+    AfterPage = 1,
+    End = 2
 }
 
 public sealed record ScanDeviceInfo
@@ -48,9 +56,42 @@ public sealed record ScanSettings
     public ScanColorMode ColorMode { get; init; } = ScanColorMode.Color;
     public int Dpi { get; init; } = 300;
     public bool Duplex { get; init; }
+
+    /// <summary>Stop after this many sheets. 1 = one-click / rescan / flatbed step.</summary>
+    public int? MaxPages { get; init; }
 }
 
-public sealed record ScanProgress(int PagesCompleted, int? PagesTotal, string? Status);
+public sealed record ScanProgress(
+    int PagesCompleted,
+    int? PagesTotal,
+    string? Status,
+    ScannedPage? Page = null);
+
+/// <summary>Normalized crop in 0..1 page coordinates (after the current 90° rotation).</summary>
+public readonly record struct ScanCropRect(double Left, double Top, double Right, double Bottom)
+{
+    public static ScanCropRect Full => new(0, 0, 1, 1);
+
+    public ScanCropRect Clamp()
+    {
+        var left = Math.Clamp(Math.Min(Left, Right), 0, 1);
+        var top = Math.Clamp(Math.Min(Top, Bottom), 0, 1);
+        var right = Math.Clamp(Math.Max(Left, Right), 0, 1);
+        var bottom = Math.Clamp(Math.Max(Top, Bottom), 0, 1);
+        if (right - left < 0.02)
+            right = Math.Min(1, left + 0.02);
+        if (bottom - top < 0.02)
+            bottom = Math.Min(1, top + 0.02);
+        return new ScanCropRect(left, top, right, bottom);
+    }
+}
+
+public sealed record ScanPipelineOptions
+{
+    public bool DropBlankPages { get; init; } = true;
+    public bool AutoDeskew { get; init; } = true;
+    public bool AutoTrim { get; init; } = true;
+}
 
 /// <summary>
 /// One scanned sheet. <see cref="PixelWidth"/> / <see cref="PixelHeight"/> are
@@ -67,6 +108,12 @@ public sealed record ScannedPage
     public required int Dpi { get; init; }
     public ScanColorMode ColorMode { get; init; } = ScanColorMode.Color;
     public int RotationDegrees { get; init; }
+
+    /// <summary>Optional decoded RGB (R,G,B packed). Used by deskew / blank / crop.</summary>
+    public byte[]? RasterRgb { get; init; }
+    public int RasterWidth { get; init; }
+    public int RasterHeight { get; init; }
+    public double DeskewDegrees { get; init; }
 
     public ScannedPage RotateBy(int deltaDegrees) =>
         this with { RotationDegrees = ScanPageLayout.NormalizeDegrees(RotationDegrees + deltaDegrees) };

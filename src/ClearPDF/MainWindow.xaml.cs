@@ -1192,6 +1192,11 @@ public partial class MainWindow : Window
             HideSaveAsChoice();
             e.Handled = true;
         }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.S)
+        {
+            Scan_Click(sender, e);
+            e.Handled = true;
+        }
         else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.O)
         {
             OpenWithDialog();

@@ -58,9 +58,10 @@ internal sealed class WiaScannerProvider : IScannerProvider
                 string id = Convert.ToString(info.DeviceID) ?? string.Empty;
                 if (string.Equals(id, deviceId, StringComparison.OrdinalIgnoreCase))
                 {
-                    var scanner = new WiaScanner(info, ReadDevice(info), manager);
-                    manager = null; // scanner owns the COM manager
-                    return scanner;
+                    var device = ReadDevice(info);
+                    WiaCom.Release(manager);
+                    manager = null;
+                    return new WiaScanner(device);
                 }
             }
 
@@ -131,25 +132,16 @@ internal sealed class WiaScannerProvider : IScannerProvider
 [SupportedOSPlatform("windows")]
 internal sealed class WiaScanner : IScanner, IDisposable
 {
-    private readonly dynamic _info;
-    private object? _manager;
-
-    public WiaScanner(dynamic info, ScanDeviceInfo device, object? manager)
-    {
-        _info = info;
-        _manager = manager;
-        Device = device;
-    }
+    public WiaScanner(ScanDeviceInfo device) => Device = device;
 
     public ScanDeviceInfo Device { get; }
 
     public void Dispose()
     {
-        WiaCom.Release(_manager);
-        _manager = null;
+        // COM lives only on the STA worker for the duration of ScanAsync.
     }
 
-    public async Task<IReadOnlyList<ScannedPage>> ScanAsync(
+    public Task<IReadOnlyList<ScannedPage>> ScanAsync(
         ScanSettings settings,
         IProgress<ScanProgress>? progress,
         CancellationToken cancellationToken)
@@ -160,17 +152,28 @@ internal sealed class WiaScanner : IScanner, IDisposable
         if (settings.Source == ScanSource.Flatbed && !Device.SupportsFlatbed)
             throw new ScannerException(ScannerErrorKind.Unknown, "This scanner has no flatbed.");
 
+        return WiaSta.Run(() => ScanOnSta(settings, progress, cancellationToken), cancellationToken);
+    }
+
+    private IReadOnlyList<ScannedPage> ScanOnSta(
+        ScanSettings settings,
+        IProgress<ScanProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         var pages = new List<ScannedPage>();
+        object? manager = null;
         dynamic? device = null;
         try
         {
-            device = _info.Connect();
+            manager = WiaCom.Create("WIA.DeviceManager");
+            device = ConnectById(manager, Device.Id);
             ApplyDeviceHandling(device, settings);
             var item = WiaCom.FindItem(device, settings.Source) ?? WiaCom.FirstItem(device);
             if (item == null)
                 throw new ScannerException(ScannerErrorKind.Unknown, "The scanner has no scan source.");
 
             ApplyItemSettings(item, settings);
+            ApplyAutoPageSize(item, settings);
 
             while (true)
             {
@@ -179,10 +182,12 @@ internal sealed class WiaScanner : IScanner, IDisposable
                 {
                     var page = TransferPage(item, settings);
                     pages.Add(page);
-                    progress?.Report(new ScanProgress(pages.Count, null, $"Scanned page {pages.Count}"));
+                    progress?.Report(new ScanProgress(
+                        pages.Count, null, $"Scanned page {pages.Count}", page));
                     if (settings.Source == ScanSource.Flatbed)
                         break;
-                    await Task.Yield();
+                    if (settings.MaxPages is > 0 && pages.Count >= settings.MaxPages.Value)
+                        break;
                 }
                 catch (Exception ex)
                 {
@@ -215,6 +220,7 @@ internal sealed class WiaScanner : IScanner, IDisposable
         finally
         {
             WiaCom.Release(device);
+            WiaCom.Release(manager);
         }
 
         if (pages.Count == 0)
@@ -225,6 +231,21 @@ internal sealed class WiaScanner : IScanner, IDisposable
         }
 
         return pages;
+    }
+
+    private static dynamic ConnectById(object manager, string deviceId)
+    {
+        dynamic dyn = manager;
+        int count = dyn.DeviceInfos.Count;
+        for (var i = 1; i <= count; i++)
+        {
+            dynamic info = dyn.DeviceInfos[i];
+            string id = Convert.ToString(info.DeviceID) ?? string.Empty;
+            if (string.Equals(id, deviceId, StringComparison.OrdinalIgnoreCase))
+                return info.Connect();
+        }
+
+        throw new ScannerException(ScannerErrorKind.DeviceNotFound);
     }
 
     private static void ApplyDeviceHandling(dynamic device, ScanSettings settings)
@@ -249,7 +270,30 @@ internal sealed class WiaScanner : IScanner, IDisposable
         WiaCom.TrySetProperty(item.Properties, WiaCom.CurrentIntent, intent);
         WiaCom.TrySetProperty(item.Properties, WiaCom.HorizontalResolution, settings.Dpi);
         WiaCom.TrySetProperty(item.Properties, WiaCom.VerticalResolution, settings.Dpi);
-        WiaCom.TrySetProperty(item.Properties, WiaCom.Format, WiaCom.JpegFormat);
+        WiaCom.TrySetProperty(item.Properties, WiaCom.Format, WiaCom.BmpFormat);
+    }
+
+    private static void ApplyAutoPageSize(dynamic item, ScanSettings settings)
+    {
+        WiaCom.TrySetProperty(item.Properties, WiaCom.PageSize, WiaCom.PageAuto);
+        WiaCom.TrySetProperty(item.Properties, WiaCom.HorizontalStartPosition, 0);
+        WiaCom.TrySetProperty(item.Properties, WiaCom.VerticalStartPosition, 0);
+
+        var dpi = Math.Max(1, settings.Dpi);
+        var maxW = WiaCom.TryGetPropertyInt(item.Properties, WiaCom.HorizontalExtent);
+        var maxH = WiaCom.TryGetPropertyInt(item.Properties, WiaCom.VerticalExtent);
+        var bedW = WiaCom.TryGetPropertyInt(item.Properties, WiaCom.HorizontalBedSize);
+        var bedH = WiaCom.TryGetPropertyInt(item.Properties, WiaCom.VerticalBedSize);
+        var extentW = bedW is > 0 ? Math.Max(1, (int)Math.Round(bedW.Value / 1000.0 * dpi)) : maxW;
+        var extentH = bedH is > 0 ? Math.Max(1, (int)Math.Round(bedH.Value / 1000.0 * dpi)) : maxH;
+        if (maxW is > 0 && extentW is > 0)
+            extentW = Math.Min(extentW.Value, maxW.Value);
+        if (maxH is > 0 && extentH is > 0)
+            extentH = Math.Min(extentH.Value, maxH.Value);
+        if (extentW is > 0)
+            WiaCom.TrySetProperty(item.Properties, WiaCom.HorizontalExtent, extentW.Value);
+        if (extentH is > 0)
+            WiaCom.TrySetProperty(item.Properties, WiaCom.VerticalExtent, extentH.Value);
     }
 
     private static ScannedPage TransferPage(dynamic item, ScanSettings settings)
@@ -259,18 +303,33 @@ internal sealed class WiaScanner : IScanner, IDisposable
         {
             try
             {
-                imageFile = item.Transfer(WiaCom.JpegFormat);
+                imageFile = item.Transfer(WiaCom.BmpFormat);
             }
             catch (Exception)
             {
-                imageFile = item.Transfer();
+                try
+                {
+                    imageFile = item.Transfer(WiaCom.JpegFormat);
+                }
+                catch (Exception)
+                {
+                    imageFile = item.Transfer();
+                }
             }
 
             byte[] bytes = WiaCom.ReadBinary(imageFile);
             if (bytes.Length == 0)
                 throw new ScannerException(ScannerErrorKind.Unknown, "The scanner returned an empty page.");
 
-            if (!ScanImageHeader.TryRead(bytes, out var width, out var height, out var format))
+            byte[]? rgb = null;
+            var width = 0;
+            var height = 0;
+            var format = ScanImageFormat.Jpeg;
+            if (ScanBmp.TryDecodeRgb(bytes, out width, out height, out rgb))
+            {
+                format = ScanImageFormat.Bmp;
+            }
+            else if (!ScanImageHeader.TryRead(bytes, out width, out height, out format))
             {
                 format = ScanImageFormat.Jpeg;
                 width = Math.Max(1, settings.Dpi * 8);
@@ -284,13 +343,50 @@ internal sealed class WiaScanner : IScanner, IDisposable
                 PixelWidth = width,
                 PixelHeight = height,
                 Dpi = Math.Max(1, settings.Dpi),
-                ColorMode = settings.ColorMode
+                ColorMode = settings.ColorMode,
+                RasterRgb = rgb,
+                RasterWidth = rgb == null ? 0 : width,
+                RasterHeight = rgb == null ? 0 : height
             };
         }
         finally
         {
             WiaCom.Release(imageFile);
         }
+    }
+}
+
+/// <summary>
+/// WIA Automation is STA COM. A thread-pool MTA call freezes or fails; a
+/// dedicated STA worker keeps the WPF UI moving while a page transfers.
+/// </summary>
+[SupportedOSPlatform("windows")]
+internal static class WiaSta
+{
+    public static Task<T> Run<T>(Func<T> work, CancellationToken cancellationToken)
+    {
+        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                tcs.TrySetResult(work());
+            }
+            catch (OperationCanceledException ex)
+            {
+                tcs.TrySetCanceled(ex.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.IsBackground = true;
+        thread.Name = "ClearPDF-WIA";
+        thread.Start();
+        return tcs.Task;
     }
 }
 
@@ -306,6 +402,14 @@ internal static class WiaCom
     public const int HorizontalResolution = 6147;
     public const int VerticalResolution = 6148;
     public const int Format = 4106;
+    public const int PageSize = 3097;
+    public const int PageAuto = 100;
+    public const int HorizontalStartPosition = 6149;
+    public const int VerticalStartPosition = 6150;
+    public const int HorizontalExtent = 6151;
+    public const int VerticalExtent = 6152;
+    public const int HorizontalBedSize = 3074;
+    public const int VerticalBedSize = 3075;
     public const int Feed = 0x01;
     public const int Flat = 0x02;
     public const int Duplex = 0x04;
@@ -313,6 +417,7 @@ internal static class WiaCom
     public const int IntentGray = 0x00000002;
     public const int IntentText = 0x00000004;
     public const string JpegFormat = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}";
+    public const string BmpFormat = "{B96B3CAB-0728-11D3-9D7B-0000F81EF32E}";
     public const string CategoryFlatbed = "FB607B19-43F3-488B-855B-FB703EC342A6";
     public const string CategoryFeeder = "FE131934-24C6-4BB6-8C0D-378D5F8582B4";
 

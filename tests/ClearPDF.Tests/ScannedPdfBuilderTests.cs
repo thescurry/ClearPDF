@@ -139,6 +139,58 @@ public class ScannedPdfBuilderTests
     }
 
     [Fact]
+    public void Insert_at_start_middle_and_end_keeps_existing_pages()
+    {
+        var source = TempPdf();
+        ScannedPdfBuilder.SaveNew(
+            new[]
+            {
+                ScanTestPages.Solid(2550, 3300, 300, tag: 1),
+                ScanTestPages.Solid(2550, 3300, 300, tag: 2)
+            },
+            source);
+
+        var destStart = TempPdf();
+        ScannedPdfBuilder.Insert(
+            new[] { ScanTestPages.Solid(1275, 1650, 150, tag: 9) },
+            source, insertAt: 0, destStart);
+        using (var doc = PdfReader.Open(destStart, PdfDocumentOpenMode.Import))
+        {
+            Assert.Equal(3, doc.PageCount);
+            Assert.Equal(612, doc.Pages[0].Width.Point, precision: 2);
+        }
+
+        var destMid = TempPdf();
+        ScannedPdfBuilder.Insert(
+            new[] { ScanTestPages.Solid(1275, 1650, 150, tag: 8) },
+            source, insertAt: 1, destMid);
+        using (var doc = PdfReader.Open(destMid, PdfDocumentOpenMode.Import))
+            Assert.Equal(3, doc.PageCount);
+
+        var destEnd = TempPdf();
+        ScannedPdfBuilder.Insert(
+            new[] { ScanTestPages.Solid(1275, 1650, 150, tag: 7) },
+            source, insertAt: 2, destEnd);
+        using (var doc = PdfReader.Open(destEnd, PdfDocumentOpenMode.Import))
+            Assert.Equal(3, doc.PageCount);
+
+        using var original = PdfReader.Open(source, PdfDocumentOpenMode.Import);
+        Assert.Equal(2, original.PageCount);
+    }
+
+    [Theory]
+    [InlineData(ScanInsertMode.Start, 99, 5, 0)]
+    [InlineData(ScanInsertMode.End, 1, 5, 5)]
+    [InlineData(ScanInsertMode.AfterPage, 3, 5, 3)]
+    [InlineData(ScanInsertMode.AfterPage, 0, 5, 0)]
+    [InlineData(ScanInsertMode.AfterPage, 50, 5, 5)]
+    public void ResolveInsertIndex_clamps_to_the_open_document(
+        ScanInsertMode mode, int after, int count, int expected)
+    {
+        Assert.Equal(expected, ScannedPdfBuilder.ResolveInsertIndex(mode, after, count));
+    }
+
+    [Fact]
     public void Grayscale_pages_are_still_jpeg_compressed()
     {
         var page = MockScanner.CreateSolidPage(64, 64, 150, ScanColorMode.Grayscale, 20, 20, 20);

@@ -34,8 +34,10 @@ public static class ScannerErrorMapper
             return ScannerErrorKind.DeviceBusy;
         if (hr == WiaNoDevice)
             return ScannerErrorKind.DeviceNotFound;
+        if (hr == WiaPaperJam)
+            return ScannerErrorKind.PaperJam;
         if (hr == WiaOffline || hr == WiaDeviceCommunication || hr == RpcCallFailed ||
-            hr == WiaCoverOpen || hr == WiaUserIntervention || hr == WiaPaperJam)
+            hr == WiaCoverOpen || hr == WiaUserIntervention)
             return ScannerErrorKind.Communication;
 
         return ScannerErrorKind.Unknown;

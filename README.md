@@ -2,7 +2,7 @@
 
 Simple local PDF reader for **Windows 10+**. WPF · .NET 8 · no ribbons, AI, or cloud.
 
-UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal.
+UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal, [scan dialog](docs/mocks/v13-scan-dialog.png).
 
 ## Download (Windows)
 
@@ -66,13 +66,21 @@ ClearPDF.exe "C:\path\to\file.pdf"
 
 ## Scan to PDF (v1.3, Windows)
 
-**File → Scan…** on the empty window, or the toolbar Scan icon while a PDF is open.
+**File → Scan…** on the empty window, the toolbar Scan icon, or **Ctrl+Shift+S**.
 
-The dialog lists WIA scanners, then **source** (flatbed / feeder), **color** (color / grayscale / black and white), **DPI** (150 / 200 / 300), and duplex when the driver reports it. Scanned pages show as thumbnails: reorder, rotate, delete, scan more. **Save as new PDF** writes a new file. **Append to open PDF** adds pages to the document you already have open, via a temp file and replace (the open path is never truncated in place).
+Click **Scan**. Defaults are 300 DPI, color, auto document size. The last scanner and settings come back next time. Pages show up in the strip as they arrive — add more (flatbed loop or another feeder run), then save a new PDF or insert into the open file at the start, after a page, or at the end.
 
-Windows uses **WIA 2.0** COM (`WIA.DeviceManager` / wiaaut.dll). WinRT `Windows.Devices.Scanners` was not used: it needs CsWinRT, historically misses some WIA-only devices, and is weaker on feeder-empty / busy HRESULTs that HP ADF units already return through WIA.
+Per page: rotate, drag to reorder, delete, rescan, crop, trim. **Drop blank pages** and **Auto-straighten** are on unless you turn them off. Duplex and feeder appear only when the device reports them.
 
-Linux `dotnet test` covers the Core mock scanner, session ops, and PDFsharp builder — not a live device. Hardware still to check: HP ENVY 7640 (flatbed) and HP Color LaserJet MFP M277dw (feeder).
+Keyboard in the dialog: **Space** scan, **R** rotate, **Del** delete, **T** trim, **Ctrl+↑/↓** move, **Ctrl+S** save, **Ctrl+I** insert, **Esc** stop / close.
+
+Windows uses **WIA 2.0** COM (`WIA.DeviceManager` / wiaaut.dll) on a background STA thread so the window stays usable. WinRT `Windows.Devices.Scanners` was not used: it needs CsWinRT, historically misses some WIA-only devices, and is weaker on feeder-empty / busy / jam HRESULTs.
+
+**TWAIN** is not bundled. WIA already covers the HP ENVY / LaserJet class this app targets; a TWAIN DSM would add native bits and a vendor UI we are trying not to show. `IScannerProvider` is the hook if a device only speaks TWAIN.
+
+**OCR / searchable PDF** is not bundled. There is no small, solid, offline library that fits this app (Tesseract + tessdata is a large native pack). Implement `IScanOcr` to add one later. The dialog shows the checkbox disabled with that reason.
+
+Linux `dotnet test` covers the Core mock scanner, `ScanViewModel`, blank/deskew/crop pipeline, and PDFsharp builder — not a live device. Hardware still to check: HP ENVY 7640 (flatbed) and HP Color LaserJet MFP M277dw (feeder). Without a scanner, the dialog falls back to two mock HP devices so you can click through the strip and save.
 
 ## PDFium native notes
 

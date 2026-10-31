@@ -14,6 +14,8 @@ public class ScannerErrorMapperTests
     [InlineData(ScannerErrorMapper.WiaDeviceCommunication, ScanSource.Flatbed, ScannerErrorKind.Communication)]
     [InlineData(ScannerErrorMapper.WiaOffline, ScanSource.Flatbed, ScannerErrorKind.Communication)]
     [InlineData(ScannerErrorMapper.CancelledHResult, ScanSource.Feeder, ScannerErrorKind.Cancelled)]
+    [InlineData(ScannerErrorMapper.WiaPaperJam, ScanSource.Feeder, ScannerErrorKind.PaperJam)]
+    [InlineData(ScannerErrorMapper.WiaPaperJam, ScanSource.Flatbed, ScannerErrorKind.PaperJam)]
     public void FromHResult_maps_wia_codes(int hr, ScanSource source, ScannerErrorKind expected)
     {
         Assert.Equal(expected, ScannerErrorMapper.FromHResult(hr, source));

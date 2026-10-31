@@ -22,6 +22,13 @@ internal static class ScanTestPages
         return page;
     }
 
-    public static int Tag(ScannedPage page) =>
-        Tags.TryGetValue(page.Id, out var tag) ? tag : 0;
+    public static int Tag(ScannedPage page)
+    {
+        if (Tags.TryGetValue(page.Id, out var tag))
+            return tag;
+        // MockScanner clones pages with a new Id; the solid swatch still starts with the tag red.
+        if (page.RasterRgb is { Length: >= 3 })
+            return page.RasterRgb[0];
+        return 0;
+    }
 }
