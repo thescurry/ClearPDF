@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -9,9 +10,13 @@ namespace ClearPDF.Mac.Services;
 /// <summary>Avalonia display adapter for <see cref="PdfPixelBuffer"/>.</summary>
 internal static class PdfPixelBufferAvalonia
 {
+    private static readonly ConditionalWeakTable<PdfPixelBuffer, WriteableBitmap> Converted = new();
+
     public static WriteableBitmap ToBitmap(PdfPixelBuffer buffer)
     {
         ArgumentNullException.ThrowIfNull(buffer);
+        if (Converted.TryGetValue(buffer, out var cached))
+            return cached;
         var bmp = new WriteableBitmap(
             new PixelSize(buffer.Width, buffer.Height),
             new Vector(96, 96),
@@ -36,6 +41,7 @@ internal static class PdfPixelBufferAvalonia
             }
         }
 
+        Converted.Add(buffer, bmp);
         return bmp;
     }
 }

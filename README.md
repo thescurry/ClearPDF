@@ -18,11 +18,12 @@ Self-contained ~166 MB on disk after install. No .NET install required.
 
 CI uploads an unsigned `ClearPDF.app` zip (`ClearPDF-macos-x64-app`) on each pull request. Printing is not included on Mac.
 
-**First launch (Gatekeeper):** the app is unsigned, so macOS will block a normal double-click.
+**First launch (Gatekeeper, Sequoia 15):** the app is unsigned. On Sequoia, right-click → Open no longer bypasses the block.
 
 1. Unzip `ClearPDF-macos-x64.zip`
-2. Right-click `ClearPDF.app` → **Open** → **Open**
-3. Later opens can use a normal double-click
+2. Double-click `ClearPDF.app` once — macOS will refuse it
+3. Open **System Settings → Privacy & Security**, scroll to the message about ClearPDF, and click **Open Anyway**
+4. Confirm **Open** in the follow-up dialog
 
 If Finder still says the app is damaged, that is usually quarantine on the zip. In Terminal: `xattr -dr com.apple.quarantine ClearPDF.app`
 
@@ -89,7 +90,7 @@ Docnet.Core needs **`pdfium.dll`** (and related natives) at runtime on Windows.
 1. `dotnet restore` / `dotnet build` pulls Docnet.Core. Depending on package version, natives may arrive via runtime assets or a companion package.
 2. If the app starts but shows the **stub page** banner (“PDFium natives not loaded”), copy `pdfium.dll` next to `ClearPDF.exe` (usually `src\ClearPDF\bin\Debug\net8.0-windows\`).
 3. Official / community native builds: [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) (pick the Windows x64 build matching your RID).
-4. On Linux scaffold machines, the factory **probes** for natives and falls back to `StubPdfDocument` so the UI shell still opens. Real render/find quality needs Windows or macOS + natives. Printing remains Windows-only.
+4. On Linux scaffold machines, the factory **probes** for natives and falls back to `StubPdfDocument` so the UI shell still opens. On Windows and macOS a missing `pdfium` library is an error (logged + shown), not gray stub pages. Printing remains Windows-only.
 5. On Intel macOS, Docnet ships `pdfium.dylib` under `runtimes/osx-x64/native/`. The bundle script copies it next to the executable inside `ClearPDF.app`.
 
 Factory entry point: `DocnetPdfDocumentFactory` in `src/ClearPDF.Core/Services/DocnetPdfDocument.cs`.

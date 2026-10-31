@@ -35,10 +35,21 @@ else
   echo "pdfium already beside exe: $found"
 fi
 
-# Docnet DllImport("pdfium") resolves libpdfium.dylib OR pdfium.dylib.
-if [[ "$base" == "pdfium.dylib" && ! -f "$DEST/libpdfium.dylib" ]]; then
-  cp -f "$DEST/pdfium.dylib" "$DEST/libpdfium.dylib"
+# One file on disk; the other name is a symlink (Docnet DllImport("pdfium")).
+if [[ "$base" == "pdfium.dylib" ]]; then
+  rm -f "$DEST/libpdfium.dylib"
+  ln -s pdfium.dylib "$DEST/libpdfium.dylib"
 fi
 if [[ "$base" == "libpdfium.dylib" && ! -f "$DEST/pdfium.dylib" ]]; then
   cp -f "$DEST/libpdfium.dylib" "$DEST/pdfium.dylib"
+  rm -f "$DEST/libpdfium.dylib"
+  ln -s pdfium.dylib "$DEST/libpdfium.dylib"
 fi
+
+# Drop the RID-probed copy so the bundle is not carrying pdfium twice.
+rm -f "$DEST/runtimes/osx-x64/native/pdfium.dylib" \
+      "$DEST/runtimes/osx-x64/native/libpdfium.dylib"
+rmdir "$DEST/runtimes/osx-x64/native" 2>/dev/null || true
+rmdir "$DEST/runtimes/osx-x64" 2>/dev/null || true
+rmdir "$DEST/runtimes/osx/native" 2>/dev/null || true
+rmdir "$DEST/runtimes/osx" 2>/dev/null || true

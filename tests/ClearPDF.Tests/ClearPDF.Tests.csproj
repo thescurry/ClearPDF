@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Docnet.Core" Version="2.6.0" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -19,5 +20,28 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ClearPDF.Core\ClearPDF.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="fixtures\solid-red-72.pdf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Put Docnet natives next to testhost so DllImport("pdfium") resolves. -->
+  <Target Name="CopyPdfiumForTests" AfterTargets="Build">
+    <PropertyGroup>
+      <_DocnetNatives>$(PkgDocnet_Core)/runtimes</_DocnetNatives>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_DocnetNatives)/win-x64/native/pdfium.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_DocnetNatives)/win-x64/native/pdfium.dll')" />
+    <Copy SourceFiles="$(_DocnetNatives)/osx-x64/native/pdfium.dylib"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_DocnetNatives)/osx-x64/native/pdfium.dylib')" />
+    <Copy SourceFiles="$(_DocnetNatives)/osx-x64/native/pdfium.dylib"
+          DestinationFiles="$(OutputPath)libpdfium.dylib"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_DocnetNatives)/osx-x64/native/pdfium.dylib')" />
+  </Target>
 
 </Project>

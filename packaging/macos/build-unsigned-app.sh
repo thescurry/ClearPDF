@@ -14,6 +14,8 @@ dotnet publish "$ROOT/src/ClearPDF.Mac/ClearPDF.Mac.csproj" \
   -r osx-x64 \
   --self-contained true \
   -p:PublishReadyToRun=false \
+  -p:DebugType=none \
+  -p:DebugSymbols=false \
   -o "$PUBLISH"
 
 "$ROOT/packaging/macos/bundle-app.sh" "$PUBLISH" "$DIST"

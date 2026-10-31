@@ -208,13 +208,24 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
 
     public static bool AreNativesAvailable => NativesAvailable.Value;
 
+    /// <summary>
+    /// Windows and macOS ship PDFium. A load failure there is an error, not a
+    /// silent gray stub. Linux scaffold boxes may still open a stub document.
+    /// </summary>
+    public static bool RequiresNativePdfEngine =>
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+        || RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+
+    public const string MissingNativesMessage =
+        "PDFium natives failed to load. On Windows, pdfium.dll must sit next to ClearPDF.exe. On macOS, pdfium.dylib must sit next to the ClearPDF executable inside ClearPDF.app.";
+
     public IPdfDocument Open(string path, string? password = null)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             throw new PdfOpenException($"File not found: {path}");
 
         if (!AreNativesAvailable)
-            return new StubPdfDocument(path);
+            return FallbackWhenNativesMissing(path, RequiresNativePdfEngine);
 
         try
         {
@@ -253,14 +264,28 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
         {
             throw;
         }
-        catch (DllNotFoundException)
+        catch (DllNotFoundException ex)
         {
-            return new StubPdfDocument(path);
+            AppLog.Error(MissingNativesMessage, ex);
+            return FallbackWhenNativesMissing(path, RequiresNativePdfEngine);
         }
         catch (Exception ex)
         {
             throw new PdfOpenException($"Could not open PDF: {ex.Message}", ex);
         }
+    }
+
+    /// <summary>Test seam for missing-native policy (throw vs stub).</summary>
+    internal static IPdfDocument FallbackWhenNativesMissing(string path, bool requireNatives)
+    {
+        if (requireNatives)
+        {
+            AppLog.Error(MissingNativesMessage);
+            throw new PdfOpenException(MissingNativesMessage);
+        }
+
+        AppLog.Warn("PDFium natives not loaded — using stub pages (non-Windows/macOS).");
+        return new StubPdfDocument(path);
     }
 
     private static bool LooksLikePasswordError(Exception ex)
@@ -287,8 +312,9 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
             _ = DocLib.Instance;
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            AppLog.Error("PDFium probe failed", ex);
             return false;
         }
     }

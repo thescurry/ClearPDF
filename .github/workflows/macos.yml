@@ -10,7 +10,9 @@ on:
 jobs:
   macos-app:
     name: osx-x64 unsigned app
-    runs-on: macos-latest
+    # Intel runner so the published x86_64 binary runs natively (not Rosetta).
+    # macos-13 retired Dec 2025; macos-15-intel is the current hosted Intel image.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
 
@@ -18,13 +20,31 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Test Core
+      - name: Test Core (includes fixture render)
         run: dotnet test tests/ClearPDF.Tests/ClearPDF.Tests.csproj -c Release --nologo
 
       - name: Publish, bundle, and zip unsigned ClearPDF.app
         run: |
           chmod +x packaging/macos/*.sh
           ./packaging/macos/build-unsigned-app.sh
+
+      - name: Assert app and pdfium are thin x86_64
+        run: ./packaging/macos/verify-x64.sh dist/macos/ClearPDF.app
+
+      - name: Smoke-render fixture with the x64 app
+        run: |
+          out="${RUNNER_TEMP}/solid-red.bgra"
+          dist/macos/ClearPDF.app/Contents/MacOS/ClearPDF \
+            --smoke-render tests/ClearPDF.Tests/fixtures/solid-red-72.pdf "$out"
+          test -s "$out"
+          python3 - <<PY
+          from pathlib import Path
+          data = Path("$out").read_bytes()
+          assert len(data) == 144 * 144 * 4, len(data)
+          i = (72 * 576) + (72 * 4)
+          assert data[i:i+4] == bytes([0, 0, 255, 255]), data[i:i+4]
+          print("smoke raster ok", len(data))
+          PY
 
       - name: Upload unsigned .app zip
         uses: actions/upload-artifact@v4

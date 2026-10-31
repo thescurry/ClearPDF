@@ -16,6 +16,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp -a "$PUBLISH"/. "$APP/Contents/MacOS/"
+find "$APP/Contents/MacOS" -name '*.pdb' -delete
 cp "$ROOT/packaging/macos/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
