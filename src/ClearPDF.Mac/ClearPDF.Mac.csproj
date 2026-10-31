@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationTitle>ClearPDF</ApplicationTitle>
+    <Product>ClearPDF</Product>
+    <Description>A simple local PDF reader for Intel macOS</Description>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <RootNamespace>ClearPDF.Mac</RootNamespace>
+    <AssemblyName>ClearPDF</AssemblyName>
+    <ApplicationId>com.clearpdf.app</ApplicationId>
+    <RuntimeIdentifiers>osx-x64</RuntimeIdentifiers>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ClearPDF.Core\ClearPDF.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!-- Copy osx-x64 pdfium next to the exe so DocLib finds it without RID probing quirks. -->
+  <Target Name="CopyPdfiumNative" AfterTargets="Build">
+    <PropertyGroup>
+      <_PdfiumSrc Condition="Exists('$(OutputPath)runtimes\osx-x64\native\pdfium.dylib')">$(OutputPath)runtimes\osx-x64\native\pdfium.dylib</_PdfiumSrc>
+      <_PdfiumSrc Condition="'$(_PdfiumSrc)' == '' And Exists('$(OutputPath)runtimes\osx-x64\native\libpdfium.dylib')">$(OutputPath)runtimes\osx-x64\native\libpdfium.dylib</_PdfiumSrc>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_PdfiumSrc)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" Condition="'$(_PdfiumSrc)' != ''" />
+  </Target>
+
+</Project>
