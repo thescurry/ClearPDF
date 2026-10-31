@@ -5,9 +5,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Documents;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ClearPDF.Helpers;
+using ClearPDF.Imaging;
 using ClearPDF.Services;
 using ClearPDF.Views;
 using Microsoft.Win32;
@@ -466,14 +466,14 @@ public partial class MainWindow : Window
         }, token);
     }
 
-    private void ApplyThumbBitmap(int pageIndex, BitmapSource bmp, int gen, IPdfDocument doc)
+    private void ApplyThumbBitmap(int pageIndex, PdfPixelBuffer bmp, int gen, IPdfDocument doc)
     {
         if (gen != _thumbGeneration || _doc != doc)
             return;
         if (pageIndex < 0 || pageIndex >= _thumbImages.Length)
             return;
         // Swap Source only — never rebuild the shell (selection chrome must not clear thumbs).
-        _thumbImages[pageIndex].Source = bmp;
+        _thumbImages[pageIndex].Source = PdfPixelBufferWpf.ToFrozenBitmap(bmp);
     }
 
     private void CancelThumbRenders()
@@ -844,7 +844,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ApplyPageBitmap(int pageIndex, BitmapSource bmp, int gen, IPdfDocument doc, bool isSharp)
+    private void ApplyPageBitmap(int pageIndex, PdfPixelBuffer bmp, int gen, IPdfDocument doc, bool isSharp)
     {
         if (gen != _renderGeneration || _doc != doc)
             return;
@@ -854,7 +854,7 @@ public partial class MainWindow : Window
         if (PageRenderPlanner.ShouldKeepExistingBitmap(!isSharp, alreadySharp))
             return;
         // Keep last frame until we have something to show — then swap.
-        _pageImages[pageIndex].Source = bmp;
+        _pageImages[pageIndex].Source = PdfPixelBufferWpf.ToFrozenBitmap(bmp);
         if (pageIndex < _pageShowingSharp.Length)
             _pageShowingSharp[pageIndex] = isSharp;
     }
@@ -1255,15 +1255,15 @@ internal sealed class PdfPrintPaginator : System.Windows.Documents.DocumentPagin
         var docPage = pageNumber >= 0 && pageNumber < _pages.Count ? _pages[pageNumber] : 0;
         var (pw, ph) = _doc.GetPageSize(docPage);
         var scale = Math.Min(_pageSize.Width / pw, _pageSize.Height / ph);
-        var bmp = _doc.RenderPage(docPage, scale);
+        var raster = _doc.RenderPage(docPage, scale);
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
-            if (bmp != null)
+            if (raster != null)
             {
                 var drawW = pw * scale;
                 var drawH = ph * scale;
-                dc.DrawImage(bmp, new Rect(0, 0, drawW, drawH));
+                dc.DrawImage(PdfPixelBufferWpf.ToFrozenBitmap(raster), new Rect(0, 0, drawW, drawH));
             }
         }
         return new System.Windows.Documents.DocumentPage(visual);

@@ -1,8 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using ClearPDF.Helpers;
+using ClearPDF.Imaging;
 using ClearPDF.Models;
 using Docnet.Core;
 using Docnet.Core.Models;
@@ -10,8 +9,8 @@ using Docnet.Core.Models;
 namespace ClearPDF.Services;
 
 /// <summary>
-/// Docnet.Core / PDFium-backed document. On Linux scaffold boxes (or missing
-/// pdfium.dll), <see cref="DocnetPdfDocumentFactory"/> falls back to a stub.
+/// Docnet.Core / PDFium-backed document. On machines without natives,
+/// <see cref="DocnetPdfDocumentFactory"/> falls back to a stub.
 /// <para>
 /// Renders at target DPI via a short-lived reader over in-memory PDF bytes
 /// (password used once to <c>Unlock</c> — never retained). Baseline reader is
@@ -60,10 +59,9 @@ internal sealed class DocnetPdfDocument : IPdfDocument
 
     /// <summary>
     /// Rasterize <paramref name="pageIndex"/> at capped target DPI for
-    /// <paramref name="zoom"/>. Safe to call from a worker thread; returns a
-    /// frozen <see cref="BitmapSource"/>. Does not use TransformedBitmap.
+    /// <paramref name="zoom"/>. Safe to call from a worker thread.
     /// </summary>
-    public BitmapSource? RenderPage(int pageIndex, double zoom)
+    public PdfPixelBuffer? RenderPage(int pageIndex, double zoom)
     {
         EnsureNotDisposed();
         if (pageIndex < 0 || pageIndex >= PageCount)
@@ -79,7 +77,6 @@ internal sealed class DocnetPdfDocument : IPdfDocument
         lock (DocnetGate)
         {
             EnsureNotDisposed();
-            // Fresh reader at the capped pixels-per-point — no 2× + TransformedBitmap thrash.
             using var reader = DocLib.Instance.GetDocReader(_pdfBytes, new PageDimensions(ppp));
             using var page = reader.GetPageReader(pageIndex);
             bytes = page.GetImage();
@@ -90,17 +87,7 @@ internal sealed class DocnetPdfDocument : IPdfDocument
         if (bytes == null || width <= 0 || height <= 0)
             return null;
 
-        var bmp = BitmapSource.Create(
-            width,
-            height,
-            96,
-            96,
-            PixelFormats.Bgra32,
-            null,
-            bytes,
-            width * 4);
-        bmp.Freeze();
-        return bmp;
+        return new PdfPixelBuffer(bytes, width, height);
     }
 
     public (double Width, double Height) GetPageSize(int pageIndex)
@@ -130,7 +117,6 @@ internal sealed class DocnetPdfDocument : IPdfDocument
     {
         EnsureNotDisposed();
         // Docnet.Core 2.x does not expose outline/bookmarks cleanly.
-        // TODO(Win10): wire FPDF_Bookmark* or a Docnet version that exposes outline.
         return Array.Empty<BookmarkItem>();
     }
 
@@ -148,7 +134,6 @@ internal sealed class DocnetPdfDocument : IPdfDocument
         lock (DocnetGate)
         {
             EnsureNotDisposed();
-            // 1-based range over unlocked in-memory bytes (password never retained).
             bytes = DocLib.Instance.Split(_pdfBytes, range);
         }
 
@@ -164,7 +149,7 @@ internal sealed class DocnetPdfDocument : IPdfDocument
         {
             _reader.Dispose();
         }
-        // Drop unlocked bytes promptly; password was never retained.
+
         Array.Clear(_pdfBytes);
     }
 
@@ -176,8 +161,8 @@ internal sealed class DocnetPdfDocument : IPdfDocument
 }
 
 /// <summary>
-/// Placeholder when PDFium natives are unavailable (Linux scaffold / missing DLL).
-/// Renders a gray page so the UI shell still works.
+/// Placeholder when PDFium natives are unavailable.
+/// Renders a gray-edged white page so the UI shell still works.
 /// </summary>
 internal sealed class StubPdfDocument : IPdfDocument
 {
@@ -187,48 +172,18 @@ internal sealed class StubPdfDocument : IPdfDocument
 
     public StubPdfDocument(string path) => FilePath = path;
 
-    public BitmapSource? RenderPage(int pageIndex, double zoom)
+    public PdfPixelBuffer? RenderPage(int pageIndex, double zoom)
     {
         if (pageIndex < 0 || pageIndex >= PageCount)
             return null;
 
-        // Thread-safe placeholder (no Visual/RenderTargetBitmap) so Task.Run render works.
-        // Do not QuantizeZoom here — that clamps to UI MinZoom and would inflate thumb rasters.
         var ppp = PdfRenderScale.CapPixelsPerPoint(
             zoom,
             PdfPageSize.LetterWidthPoints,
             PdfPageSize.LetterHeightPoints);
         var w = Math.Max(1, (int)(PdfPageSize.LetterWidthPoints * ppp));
         var h = Math.Max(1, (int)(PdfPageSize.LetterHeightPoints * ppp));
-        var stride = w * 4;
-        var pixels = new byte[stride * h];
-        for (var y = 0; y < h; y++)
-        {
-            var row = y * stride;
-            for (var x = 0; x < w; x++)
-            {
-                var i = row + x * 4;
-                var edge = x == 0 || y == 0 || x == w - 1 || y == h - 1;
-                if (edge)
-                {
-                    pixels[i] = 0xCC;     // B
-                    pixels[i + 1] = 0xCC; // G
-                    pixels[i + 2] = 0xCC; // R
-                    pixels[i + 3] = 0xFF;
-                }
-                else
-                {
-                    pixels[i] = 0xFF;
-                    pixels[i + 1] = 0xFF;
-                    pixels[i + 2] = 0xFF;
-                    pixels[i + 3] = 0xFF;
-                }
-            }
-        }
-
-        var bmp = BitmapSource.Create(w, h, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
-        bmp.Freeze();
-        return bmp;
+        return PdfPixelBuffer.CreatePlaceholder(w, h);
     }
 
     public (double Width, double Height) GetPageSize(int pageIndex) =>
@@ -236,7 +191,7 @@ internal sealed class StubPdfDocument : IPdfDocument
 
     public string GetPageText(int pageIndex) =>
         pageIndex >= 0 && pageIndex < PageCount
-            ? $"Stub page {pageIndex + 1}. PDF preview uses Docnet.Core / PDFium on Windows."
+            ? $"Stub page {pageIndex + 1}. PDF preview uses Docnet.Core / PDFium when natives are present."
             : string.Empty;
 
     public IReadOnlyList<BookmarkItem> GetBookmarks() => Array.Empty<BookmarkItem>();
@@ -259,18 +214,12 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
             throw new PdfOpenException($"File not found: {path}");
 
         if (!AreNativesAvailable)
-        {
-            // Clean stub so the UI shell runs without pdfium.dll.
             return new StubPdfDocument(path);
-        }
 
         try
         {
             var lib = DocLib.Instance;
             var usedPassword = !string.IsNullOrEmpty(password);
-            // scalingFactor is pixels-per-point (PPI/72). DocnetRenderScale (2.0) ≈ 144 DPI.
-            // GetPageSize divides by this factor to return PDF points. Per-zoom rasters use a
-            // separate reader at CapPixelsPerPoint (see DocnetPdfDocument.RenderPage).
             var dims = new PageDimensions(PdfPageSize.DocnetRenderScale);
 
             byte[] pdfBytes;
@@ -282,7 +231,6 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
                 {
                     if (usedPassword)
                     {
-                        // Unlock once — password is not retained on the document instance.
                         pdfBytes = lib.Unlock(path, password!);
                     }
                     else
@@ -317,7 +265,6 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
 
     private static bool LooksLikePasswordError(Exception ex)
     {
-        // PDFium FPDF_ERR_PASSWORD == 4; Docnet surfaces it on DocnetLoadDocumentException.ErrorCode.
         var codeProp = ex.GetType().GetProperty("ErrorCode");
         if (codeProp?.GetValue(ex) is uint code && code == 4)
             return true;
@@ -329,8 +276,11 @@ public sealed class DocnetPdfDocumentFactory : IPdfDocumentFactory
 
     private static bool ProbeNatives()
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
             return false;
+        }
 
         try
         {
