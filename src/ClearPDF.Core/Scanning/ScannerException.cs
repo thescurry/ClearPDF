@@ -28,6 +28,10 @@ public sealed class ScannerException : Exception
                 return "Could not talk to the scanner. Check the cable and that no other app is using it.";
             case ScannerErrorKind.PaperJam:
                 return "Paper jam. Clear the feeder and try again.";
+            case ScannerErrorKind.CoverOpen:
+                return "The scanner cover is open. Close it and try again.";
+            case ScannerErrorKind.Misfeed:
+                return "Paper misfeed. Straighten the stack and try again.";
             case ScannerErrorKind.Unknown:
                 return "Scan failed.";
             default:

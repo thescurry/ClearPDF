@@ -6,15 +6,18 @@ namespace ClearPDF.Tests;
 public class ScanPagePipelineTests
 {
     [Fact]
-    public void Drops_blank_pages_when_enabled()
+    public void Hides_blank_pages_instead_of_discarding_them()
     {
         var blank = Raster(64, 80, 250, 250, 250);
-        Assert.Null(ScanPagePipeline.Process(blank, new ScanPipelineOptions
+        var processed = ScanPagePipeline.Process(blank, new ScanPipelineOptions
         {
             DropBlankPages = true,
             AutoDeskew = false,
             AutoTrim = false
-        }));
+        });
+        Assert.NotNull(processed);
+        Assert.True(processed.HiddenAsBlank);
+        Assert.Same(blank.ImageBytes, processed.ImageBytes);
     }
 
     [Fact]

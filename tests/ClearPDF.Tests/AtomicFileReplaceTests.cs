@@ -3,6 +3,7 @@ using Xunit;
 
 namespace ClearPDF.Tests;
 
+[Collection("AtomicFiles")]
 public class AtomicFileReplaceTests : IDisposable
 {
     private readonly string _dir;

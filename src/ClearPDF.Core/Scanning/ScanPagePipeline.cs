@@ -1,18 +1,23 @@
 namespace ClearPDF.Scanning;
 
 /// <summary>
-/// Per-page tidy: optional deskew, margin trim, blank drop, then JPEG for PDF.
-/// Scanner I/O stays outside this type so tests can feed fake rasters.
+/// Per-page tidy: blank hide (never discard), optional deskew, margin trim,
+/// then JPEG for PDF. Scanner I/O stays outside this type.
 /// </summary>
 public static class ScanPagePipeline
 {
-    public static ScannedPage? Process(ScannedPage page, ScanPipelineOptions? options = null)
+    public static ScannedPage Process(ScannedPage page, ScanPipelineOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(page);
         options ??= new ScanPipelineOptions();
 
         if (!ScanRaster.TryGetRgb(page, out var width, out var height, out var rgb))
             return page;
+
+        if (options.DropBlankPages && ScanBlankDetector.IsBlank(rgb, width, height))
+        {
+            return page with { HiddenAsBlank = true };
+        }
 
         var geometryChanged = false;
         var angle = 0.0;
@@ -35,9 +40,6 @@ public static class ScanPagePipeline
             height = trimmed.Height;
         }
 
-        if (options.DropBlankPages && ScanBlankDetector.IsBlank(rgb, width, height))
-            return null;
-
         var jpeg = ScanJpegEncoder.EncodeRgb(rgb, width, height, page.ColorMode);
         var keepLogical = !geometryChanged && page.PixelWidth > 0 && page.PixelWidth != width;
         return page with
@@ -49,7 +51,11 @@ public static class ScanPagePipeline
             RasterHeight = height,
             PixelWidth = keepLogical ? page.PixelWidth : width,
             PixelHeight = keepLogical ? page.PixelHeight : height,
-            DeskewDegrees = angle
+            DeskewDegrees = angle,
+            HiddenAsBlank = false,
+            SourceImageBytes = page.SourceImageBytes ?? page.ImageBytes,
+            SourcePixelWidth = page.SourcePixelWidth > 0 ? page.SourcePixelWidth : page.PixelWidth,
+            SourcePixelHeight = page.SourcePixelHeight > 0 ? page.SourcePixelHeight : page.PixelHeight
         };
     }
 
@@ -69,7 +75,11 @@ public static class ScanPagePipeline
             RasterWidth = cropped.Width,
             RasterHeight = cropped.Height,
             PixelWidth = cropped.Width,
-            PixelHeight = cropped.Height
+            PixelHeight = cropped.Height,
+            SourceImageBytes = page.SourceImageBytes ?? page.ImageBytes,
+            SourceRasterPath = page.SourceRasterPath,
+            SourcePixelWidth = page.SourcePixelWidth > 0 ? page.SourcePixelWidth : page.PixelWidth,
+            SourcePixelHeight = page.SourcePixelHeight > 0 ? page.SourcePixelHeight : page.PixelHeight
         };
     }
 
@@ -79,5 +89,5 @@ public static class ScanPagePipeline
             DropBlankPages = false,
             AutoDeskew = false,
             AutoTrim = true
-        }) ?? page;
+        });
 }

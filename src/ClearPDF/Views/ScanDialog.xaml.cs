@@ -78,6 +78,24 @@ public partial class ScanDialog : Window
         RefreshThumbs();
         SyncChrome();
         ScanButton.Focus();
+        _ = ReloadDevicesSafe();
+    }
+
+    private async Task ReloadDevicesSafe()
+    {
+        try
+        {
+            await _vm.ReloadDevicesAsync();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Scanner list failed", ex);
+            StatusText.Text = ex.Message;
+        }
+
+        BindDevices();
+        BindSettings();
+        SyncChrome();
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -177,9 +195,7 @@ public partial class ScanDialog : Window
         DpiBox.IsEnabled = !_vm.IsScanning;
         DuplexBox.Visibility = _vm.CanDuplex || _vm.Duplex ? Visibility.Visible : Visibility.Collapsed;
         DuplexBox.IsEnabled = !_vm.IsScanning && _vm.CanDuplex;
-        PageCountText.Text = _vm.PageCount == 0
-            ? "No pages yet"
-            : _vm.PageCount == 1 ? "1 page" : $"{_vm.PageCount} pages";
+        PageCountText.Text = FormatPageCount();
 
         if (ThumbList.SelectedIndex != _vm.SelectedIndex &&
             _vm.SelectedIndex >= -1 && _vm.SelectedIndex < _thumbs.Count)
@@ -188,18 +204,41 @@ public partial class ScanDialog : Window
 
     private async void Scan_Click(object sender, RoutedEventArgs e)
     {
-        await _vm.ScanAsync(addMore: _vm.PageCount > 0);
-        RefreshThumbs();
-        SyncChrome();
+        try
+        {
+            await _vm.ScanAsync(addMore: _vm.VisibleCount > 0 || _vm.PageCount > 0);
+            if (!IsLoaded)
+                return;
+            RefreshThumbs();
+            SyncChrome();
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Scan failed", ex);
+            if (IsLoaded)
+                StatusText.Text = ex.Message;
+        }
     }
 
     private void CancelScan_Click(object sender, RoutedEventArgs e) => _vm.CancelScan();
 
     private async void Rescan_Click(object sender, RoutedEventArgs e)
     {
-        await _vm.RescanSelectedAsync();
-        RefreshThumbs();
-        SyncChrome();
+        try
+        {
+            await _vm.RescanSelectedAsync();
+            if (IsLoaded)
+            {
+                RefreshThumbs();
+                SyncChrome();
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Rescan failed", ex);
+            if (IsLoaded)
+                StatusText.Text = ex.Message;
+        }
     }
 
     private void MoveUp_Click(object sender, RoutedEventArgs e)
@@ -246,7 +285,7 @@ public partial class ScanDialog : Window
         SyncChrome();
     }
 
-    private void SaveNew_Click(object sender, RoutedEventArgs e)
+    private async void SaveNew_Click(object sender, RoutedEventArgs e)
     {
         if (!_vm.CanSave)
             return;
@@ -260,7 +299,7 @@ public partial class ScanDialog : Window
             return;
         try
         {
-            _vm.SaveNew(dlg.FileName);
+            await _vm.SaveNewAsync(dlg.FileName);
             DialogResult = true;
             Close();
         }
@@ -271,13 +310,13 @@ public partial class ScanDialog : Window
         }
     }
 
-    private void Insert_Click(object sender, RoutedEventArgs e)
+    private async void Insert_Click(object sender, RoutedEventArgs e)
     {
         if (!_vm.CanInsert)
             return;
         try
         {
-            _vm.InsertIntoOpenPdf();
+            await _vm.InsertIntoOpenPdfAsync();
             DialogResult = true;
             Close();
         }
@@ -286,6 +325,20 @@ public partial class ScanDialog : Window
             StatusText.Text = "Could not add pages: " + ex.Message;
             AppLog.Error("Scan insert failed", ex);
         }
+    }
+
+    private void Restore_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.RestoreSelected();
+        RefreshThumbs();
+        SyncChrome();
+    }
+
+    private void Revert_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.RevertSelected();
+        RefreshThumbs();
+        SyncChrome();
     }
 
     private void ScannerBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -382,9 +435,7 @@ public partial class ScanDialog : Window
             ? -1
             : Math.Clamp(keep, 0, _thumbs.Count - 1);
         _syncing = false;
-        PageCountText.Text = _vm.PageCount == 0
-            ? "No pages yet"
-            : _vm.PageCount == 1 ? "1 page" : $"{_vm.PageCount} pages";
+        PageCountText.Text = FormatPageCount();
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -515,6 +566,16 @@ public partial class ScanDialog : Window
         RefreshThumbs();
     }
 
+    private string FormatPageCount()
+    {
+        if (_vm.PageCount == 0)
+            return "No pages yet";
+        var visible = _vm.VisibleCount == 1 ? "1 page" : $"{_vm.VisibleCount} pages";
+        return _vm.BlankDropped == 0
+            ? visible
+            : $"{visible} ({_vm.BlankDropped} hidden as blank)";
+    }
+
     private static string SourceLabel(ScanSource source) =>
         source == ScanSource.Feeder ? "Feeder" : "Flatbed";
 
@@ -522,7 +583,7 @@ public partial class ScanDialog : Window
     {
         public ThumbItem(ScannedPage page, int index)
         {
-            Label = $"Page {index + 1}";
+            Label = page.HiddenAsBlank ? "Hidden as blank" : $"Page {index + 1}";
             Preview = LoadPreview(page);
         }
 
@@ -533,6 +594,7 @@ public partial class ScanDialog : Window
         {
             try
             {
+                var bytes = page.ThumbnailBytes ?? page.ImageBytes;
                 if (page.RasterRgb != null && page.RasterWidth > 0 && page.RasterHeight > 0)
                     return FromRgb(page.RasterRgb, page.RasterWidth, page.RasterHeight, page.RotationDegrees);
 
@@ -540,7 +602,7 @@ public partial class ScanDialog : Window
                 bmp.BeginInit();
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
                 bmp.DecodePixelWidth = 180;
-                bmp.StreamSource = new MemoryStream(page.ImageBytes);
+                bmp.StreamSource = new MemoryStream(bytes);
                 bmp.Rotation = page.RotationDegrees switch
                 {
                     90 => Rotation.Rotate90,

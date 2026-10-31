@@ -4,6 +4,7 @@ using Xunit;
 
 namespace ClearPDF.Tests;
 
+[Collection("AtomicFiles")]
 public class ScannedPdfBuilderTests
 {
     [Fact]

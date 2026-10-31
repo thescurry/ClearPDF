@@ -19,8 +19,9 @@ public static class ScannerErrorMapper
     public const int CancelledHResult = unchecked((int)0x800704C7); // ERROR_CANCELLED
     public const int RpcCallFailed = unchecked((int)0x800706BE);
 
-    public static bool IsEndOfFeeder(int hr) =>
-        hr == WiaPaperEmpty || hr == WiaPaperProblem;
+    public const int WiaInvalidCommand = unchecked((int)0x8021000B);
+
+    public static bool IsEndOfFeeder(int hr) => hr == WiaPaperEmpty;
 
     public static ScannerErrorKind FromHResult(int hr, ScanSource source)
     {
@@ -36,8 +37,12 @@ public static class ScannerErrorMapper
             return ScannerErrorKind.DeviceNotFound;
         if (hr == WiaPaperJam)
             return ScannerErrorKind.PaperJam;
+        if (hr == WiaCoverOpen)
+            return ScannerErrorKind.CoverOpen;
+        if (hr == WiaPaperProblem)
+            return ScannerErrorKind.Misfeed;
         if (hr == WiaOffline || hr == WiaDeviceCommunication || hr == RpcCallFailed ||
-            hr == WiaCoverOpen || hr == WiaUserIntervention)
+            hr == WiaUserIntervention)
             return ScannerErrorKind.Communication;
 
         return ScannerErrorKind.Unknown;

@@ -3,6 +3,7 @@ using Xunit;
 
 namespace ClearPDF.Tests;
 
+[Collection("AtomicFiles")]
 public class ScanViewModelTests
 {
     [Fact]
@@ -22,7 +23,7 @@ public class ScanViewModelTests
     }
 
     [Fact]
-    public async Task Blank_pages_are_dropped_before_they_reach_the_strip()
+    public async Task Blank_pages_stay_in_the_strip_and_can_be_restored()
     {
         var mfp = MockScanner.HpColorLaserJetM277dw();
         mfp.Queue.Add(WhitePage());
@@ -35,10 +36,16 @@ public class ScanViewModelTests
 
         await vm.ScanAsync();
 
-        Assert.Equal(1, vm.PageCount);
-        Assert.Equal(4, ScanTestPages.Tag(vm.SessionPages[0]));
+        Assert.Equal(3, vm.PageCount);
+        Assert.Equal(1, vm.VisibleCount);
         Assert.Equal(2, vm.BlankDropped);
+        Assert.Equal(4, ScanTestPages.Tag(vm.VisiblePages.Single()));
         Assert.Contains("blank", vm.Status, StringComparison.OrdinalIgnoreCase);
+
+        vm.SelectedIndex = 0;
+        vm.RestoreSelected();
+        Assert.Equal(2, vm.VisibleCount);
+        Assert.False(vm.SessionPages[0].HiddenAsBlank);
     }
 
     [Fact]
@@ -189,6 +196,106 @@ public class ScanViewModelTests
     }
 
     [Fact]
+    public async Task Dispose_mid_scan_does_not_throw()
+    {
+        var scanner = MockScanner.HpColorLaserJetM277dw();
+        scanner.Queue.Add(InkPage(1));
+        scanner.Queue.Add(InkPage(2));
+        scanner.PageHold = new TaskCompletionSource<bool>();
+        var vm = NewVm(scanner, source: ScanSource.Feeder);
+
+        var scan = vm.ScanAsync();
+        await WaitUntil(() => vm.IsScanning);
+        vm.Dispose();
+        scanner.PageHold.TrySetResult(true);
+
+        var ex = await Record.ExceptionAsync(() => scan);
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public async Task Cancel_takes_effect_before_the_next_page()
+    {
+        var scanner = MockScanner.HpColorLaserJetM277dw();
+        scanner.Queue.Add(InkPage(1));
+        scanner.Queue.Add(InkPage(2));
+        scanner.PageHold = new TaskCompletionSource<bool>();
+        using var vm = NewVm(scanner, source: ScanSource.Feeder);
+
+        var scan = vm.ScanAsync();
+        await WaitUntil(() => vm.IsScanning);
+        vm.CancelScan();
+        scanner.PageHold.TrySetResult(true);
+
+        await scan;
+        Assert.Contains("cancel", vm.Status, StringComparison.OrdinalIgnoreCase);
+        Assert.True(vm.PageCount <= 1);
+    }
+
+    [Fact]
+    public async Task Revert_restores_the_original_scan()
+    {
+        var rgb = ScanBlankDetectorTests.Solid(80, 80, 250, 250, 250);
+        ScanBlankDetectorTests.DrawRect(rgb, 80, 10, 10, 60, 60, 10, 10, 10);
+        var scanner = MockScanner.HpEnvy7640();
+        scanner.Queue.Add(MockScanner.CreateRasterPage(80, 80, 150, ScanColorMode.Color, rgb));
+        using var vm = NewVm(scanner);
+        vm.AutoDeskew = false;
+        vm.AutoTrim = false;
+
+        await vm.ScanAsync();
+        vm.SelectedIndex = 0;
+        var originalW = vm.SessionPages[0].PixelWidth;
+        vm.CropSelected(new ScanCropRect(0.25, 0.25, 0.75, 0.75));
+        Assert.True(vm.SessionPages[0].PixelWidth < originalW);
+
+        vm.RevertSelected();
+        Assert.Equal(originalW, vm.SessionPages[0].PixelWidth);
+        Assert.Equal(0, vm.SessionPages[0].RotationDegrees);
+    }
+
+    [Fact]
+    public async Task Reload_save_and_insert_can_run_off_the_caller_thread()
+    {
+        var open = TempPdf();
+        ScannedPdfBuilder.SaveNew(new[] { ScanTestPages.Solid(80, 80, 150, tag: 1) }, open);
+        var mfp = MockScanner.HpColorLaserJetM277dw();
+        mfp.Queue.Add(InkPage(2));
+        using var vm = NewVm(mfp, openPdf: open, source: ScanSource.Feeder);
+        await vm.ScanAsync();
+
+        var dest = TempPdf();
+        await Task.Run(async () =>
+        {
+            await vm.ReloadDevicesAsync();
+            await vm.SaveNewAsync(dest);
+            await vm.InsertIntoOpenPdfAsync();
+        });
+        Assert.NotNull(vm.SelectedDevice);
+        using var updated = PdfSharp.Pdf.IO.PdfReader.Open(open, PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+        Assert.Equal(2, updated.PageCount);
+    }
+
+    [Fact]
+    public async Task Hundred_page_run_evicts_rasters_from_memory()
+    {
+        var mfp = MockScanner.HpColorLaserJetM277dw();
+        for (var i = 0; i < 100; i++)
+        {
+            var rgb = ScanBlankDetectorTests.Solid(120, 160, (byte)(30 + (i % 20)), 40, 80);
+            mfp.Queue.Add(MockScanner.CreateRasterPage(120, 160, 150, ScanColorMode.Color, rgb));
+        }
+
+        using var vm = NewVm(mfp, source: ScanSource.Feeder);
+        await vm.ScanAsync();
+
+        Assert.Equal(100, vm.PageCount);
+        Assert.All(vm.SessionPages, p => Assert.Null(p.RasterRgb));
+        Assert.All(vm.SessionPages, p => Assert.NotNull(p.ThumbnailBytes));
+        Assert.All(vm.SessionPages, p => Assert.True(File.Exists(p.RasterPath)));
+    }
+
+    [Fact]
     public async Task Flatbed_one_click_then_add_more_is_a_loop()
     {
         var envy = MockScanner.HpEnvy7640();
@@ -242,6 +349,13 @@ public class ScanViewModelTests
         var dir = Path.Combine(Path.GetTempPath(), "clearpdf-scan-tests");
         Directory.CreateDirectory(dir);
         return Path.Combine(dir, Guid.NewGuid().ToString("N") + ".json");
+    }
+
+    private static async Task WaitUntil(Func<bool> ready)
+    {
+        for (var i = 0; i < 50 && !ready(); i++)
+            await Task.Delay(10);
+        Assert.True(ready());
     }
 
     private static string TempPdf()

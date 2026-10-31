@@ -29,7 +29,9 @@ public enum ScannerErrorKind
     DeviceNotFound = 4,
     Communication = 5,
     Unknown = 6,
-    PaperJam = 7
+    PaperJam = 7,
+    CoverOpen = 8,
+    Misfeed = 9
 }
 
 public enum ScanInsertMode
@@ -115,8 +117,35 @@ public sealed record ScannedPage
     public int RasterHeight { get; init; }
     public double DeskewDegrees { get; init; }
 
+    /// <summary>Small JPEG for the strip. Full raster lives on <see cref="RasterPath"/>.</summary>
+    public byte[]? ThumbnailBytes { get; init; }
+    public string? RasterPath { get; init; }
+    public bool HiddenAsBlank { get; init; }
+
+    public byte[]? SourceImageBytes { get; init; }
+    public string? SourceRasterPath { get; init; }
+    public int SourcePixelWidth { get; init; }
+    public int SourcePixelHeight { get; init; }
+
     public ScannedPage RotateBy(int deltaDegrees) =>
         this with { RotationDegrees = ScanPageLayout.NormalizeDegrees(RotationDegrees + deltaDegrees) };
+
+    public ScannedPage RestoreHidden() => this with { HiddenAsBlank = false };
+
+    public ScannedPage RevertToSource() =>
+        this with
+        {
+            ImageBytes = SourceImageBytes ?? ImageBytes,
+            RasterPath = SourceRasterPath ?? RasterPath,
+            RasterRgb = null,
+            PixelWidth = SourcePixelWidth > 0 ? SourcePixelWidth : PixelWidth,
+            PixelHeight = SourcePixelHeight > 0 ? SourcePixelHeight : PixelHeight,
+            RasterWidth = SourcePixelWidth > 0 ? SourcePixelWidth : RasterWidth,
+            RasterHeight = SourcePixelHeight > 0 ? SourcePixelHeight : RasterHeight,
+            RotationDegrees = 0,
+            DeskewDegrees = 0,
+            HiddenAsBlank = false
+        };
 
     public (int Width, int Height) OrientedPixels =>
         ScanPageLayout.IsQuarterTurn(RotationDegrees)

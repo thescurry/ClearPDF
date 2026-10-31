@@ -17,6 +17,9 @@ internal static class ScanRaster
             return true;
         }
 
+        if (ScanPageStore.TryRead(page.RasterPath, out width, out height, out rgb))
+            return true;
+
         if (ScanBmp.TryDecodeRgb(page.ImageBytes, out width, out height, out rgb))
             return true;
 
@@ -94,6 +97,32 @@ internal static class ScanRaster
         for (int i = 0, p = 0; i < gray.Length; i++, p += 3)
             gray[i] = Luma(rgb[p], rgb[p + 1], rgb[p + 2]);
         return gray;
+    }
+
+    public static (byte[] Rgb, int Width, int Height) DownsampleRgb(
+        byte[] rgb, int width, int height, int targetWidth)
+    {
+        if (targetWidth <= 0 || width <= targetWidth)
+            return (rgb, width, height);
+
+        var tw = targetWidth;
+        var th = Math.Max(1, height * tw / width);
+        var dest = new byte[tw * th * 3];
+        for (var y = 0; y < th; y++)
+        {
+            var sy = y * height / th;
+            for (var x = 0; x < tw; x++)
+            {
+                var sx = x * width / tw;
+                var src = (sy * width + sx) * 3;
+                var dst = (y * tw + x) * 3;
+                dest[dst] = rgb[src];
+                dest[dst + 1] = rgb[src + 1];
+                dest[dst + 2] = rgb[src + 2];
+            }
+        }
+
+        return (dest, tw, th);
     }
 
     public static (byte[] Gray, int Width, int Height) DownsampleGray(

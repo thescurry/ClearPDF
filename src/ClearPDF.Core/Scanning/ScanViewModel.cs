@@ -18,6 +18,7 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
     private readonly SynchronizationContext? _ui;
     private readonly HashSet<Guid> _seen = new();
     private readonly object _gate = new();
+    private readonly ScanPageStore _store;
     private CancellationTokenSource? _scanCts;
     private bool _scanning;
     private string _status = "Choose a scanner and click Scan.";
@@ -44,6 +45,7 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         _provider = provider ?? throw new ArgumentNullException(nameof(provider));
         _preferences = preferences ?? new ScanPreferencesStore();
         _ocr = ocr ?? UnavailableScanOcr.Instance;
+        _store = new ScanPageStore();
         _ui = SynchronizationContext.Current;
         OpenPdfPath = string.IsNullOrWhiteSpace(openPdfPath) ? null : openPdfPath;
         if (OpenPdfPath != null && File.Exists(OpenPdfPath))
@@ -187,6 +189,10 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     public int PageCount => _session.Count;
 
+    public int VisibleCount => _session.Pages.Count(p => !p.HiddenAsBlank);
+
+    public IEnumerable<ScannedPage> VisiblePages => _session.Pages.Where(p => !p.HiddenAsBlank);
+
     public IReadOnlyList<ScannedPage> SessionPages => _session.Pages;
 
     public bool CanDuplex =>
@@ -194,7 +200,7 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     public bool CanScan => !IsScanning && SelectedDevice != null;
 
-    public bool CanSave => !IsScanning && _session.Count > 0;
+    public bool CanSave => !IsScanning && VisibleCount > 0;
 
     public bool CanInsert => CanSave && HasOpenPdf;
 
@@ -220,7 +226,6 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     public void ReloadDevices()
     {
-        Devices.Clear();
         IReadOnlyList<ScanDeviceInfo> list;
         try
         {
@@ -228,19 +233,44 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            Status = Friendly(ex);
-            SelectedDevice = null;
-            RaiseCommands();
+            ApplyDeviceList(Array.Empty<ScanDeviceInfo>(), Friendly(ex));
             return;
         }
 
+        ApplyDeviceList(list, list.Count == 0
+            ? ScannerException.MessageFor(ScannerErrorKind.DeviceNotFound)
+            : "Ready — click Scan.");
+    }
+
+    public async Task ReloadDevicesAsync()
+    {
+        Status = "Looking for scanners…";
+        IReadOnlyList<ScanDeviceInfo> list;
+        try
+        {
+            list = await Task.Run(() => _provider.ListDevices()).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            ApplyDeviceList(Array.Empty<ScanDeviceInfo>(), Friendly(ex));
+            return;
+        }
+
+        ApplyDeviceList(list, list.Count == 0
+            ? ScannerException.MessageFor(ScannerErrorKind.DeviceNotFound)
+            : "Ready — click Scan.");
+    }
+
+    private void ApplyDeviceList(IReadOnlyList<ScanDeviceInfo> list, string status)
+    {
+        Devices.Clear();
         foreach (var device in list)
             Devices.Add(device);
 
         if (list.Count == 0)
         {
             SelectedDevice = null;
-            Status = ScannerException.MessageFor(ScannerErrorKind.DeviceNotFound);
+            Status = status;
             RaiseCommands();
             return;
         }
@@ -250,7 +280,7 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
                              string.Equals(d.Id, remember, StringComparison.OrdinalIgnoreCase))
                          ?? list[0];
         EnsureSourceSupported();
-        Status = "Ready — click Scan.";
+        Status = status;
         RaiseCommands();
     }
 
@@ -279,34 +309,34 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         if (!addMore)
             _blankDropped = 0;
 
-        _scanCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        Interlocked.Exchange(ref _scanCts, cts)?.Dispose();
         IsScanning = true;
         Status = addMore ? "Adding pages…" : "Scanning…";
         PersistPreferences();
         var settings = CurrentSettings(device);
         try
         {
-            var pages = await scanner.ScanAsync(settings, new ScanProgressSink(OnScanProgress), _scanCts.Token);
+            var pages = await scanner.ScanAsync(settings, new ScanProgressSink(OnScanProgress), cts.Token);
             foreach (var page in pages)
                 AddProcessed(page);
             Status = Summarize();
         }
         catch (OperationCanceledException)
         {
-            Status = _session.Count == 0
+            Status = VisibleCount == 0
                 ? ScannerException.MessageFor(ScannerErrorKind.Cancelled)
                 : $"Scan stopped. {Summarize()}";
         }
         catch (Exception ex)
         {
-            Status = _session.Count == 0 ? Friendly(ex) : $"{Friendly(ex)} {Summarize()}";
+            Status = VisibleCount == 0 ? Friendly(ex) : $"{Friendly(ex)} {Summarize()}";
         }
         finally
         {
             (scanner as IDisposable)?.Dispose();
             IsScanning = false;
-            _scanCts.Dispose();
-            _scanCts = null;
+            ReleaseCts();
         }
     }
 
@@ -327,31 +357,29 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         }
 
         var replaceAt = SelectedIndex;
-        _scanCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        Interlocked.Exchange(ref _scanCts, cts)?.Dispose();
         IsScanning = true;
         Status = "Rescanning page…";
         try
         {
             var settings = CurrentSettings(SelectedDevice) with { MaxPages = 1 };
-            var pages = await scanner.ScanAsync(settings, null, _scanCts.Token);
+            var pages = await scanner.ScanAsync(settings, null, cts.Token);
             if (pages.Count == 0)
             {
                 Status = "Rescan returned no page.";
                 return;
             }
 
-            var processed = ScanPagePipeline.Process(pages[0], PipelineOptions());
-            if (processed == null)
-            {
-                Status = "Rescan looked blank, so the old page was kept.";
-                return;
-            }
-
+            var processed = Keep(_store.Persist(ScanPagePipeline.Process(pages[0], PipelineOptions())));
             _seen.Add(processed.Id);
             _session.Replace(replaceAt, processed);
             Pages[replaceAt] = processed;
             SelectedIndex = replaceAt;
-            Status = "Page replaced.";
+            RecountBlanks();
+            Status = processed.HiddenAsBlank
+                ? "Rescan looked blank — hidden, tap Restore to keep it."
+                : "Page replaced.";
         }
         catch (OperationCanceledException)
         {
@@ -365,12 +393,21 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         {
             (scanner as IDisposable)?.Dispose();
             IsScanning = false;
-            _scanCts.Dispose();
-            _scanCts = null;
+            ReleaseCts();
         }
     }
 
-    public void CancelScan() => _scanCts?.Cancel();
+    public void CancelScan()
+    {
+        try
+        {
+            _scanCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // already tearing down
+        }
+    }
 
     public void RotateSelected(int deltaDegrees = 90)
     {
@@ -424,7 +461,7 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         if (!CanEditSelected)
             return;
         var i = SelectedIndex;
-        var trimmed = ScanPagePipeline.Trim(_session.Pages[i]);
+        var trimmed = Keep(_store.Persist(ScanPagePipeline.Trim(_session.Pages[i])));
         _session.Replace(i, trimmed);
         Pages[i] = trimmed;
         SelectedIndex = i;
@@ -436,34 +473,74 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         if (!CanEditSelected)
             return;
         var i = SelectedIndex;
-        var cropped = ScanPagePipeline.Crop(_session.Pages[i], rect);
+        var cropped = Keep(_store.Persist(ScanPagePipeline.Crop(_session.Pages[i], rect)));
         _session.Replace(i, cropped);
         Pages[i] = cropped;
         SelectedIndex = i;
         Status = "Cropped.";
     }
 
-    public void SaveNew(string destinationPath)
+    public void RestoreSelected()
     {
-        if (_session.Count == 0)
+        if (!CanEditSelected)
+            return;
+        var i = SelectedIndex;
+        var restored = _session.Pages[i].RestoreHidden();
+        _session.Replace(i, restored);
+        Pages[i] = restored;
+        SelectedIndex = i;
+        RecountBlanks();
+        Status = "Restored a hidden page.";
+        RaiseCommands();
+    }
+
+    public void RevertSelected()
+    {
+        if (!CanEditSelected)
+            return;
+        var i = SelectedIndex;
+        var reverted = _session.Pages[i].RevertToSource();
+        _session.Replace(i, reverted);
+        Pages[i] = reverted;
+        SelectedIndex = i;
+        RecountBlanks();
+        Status = "Reverted to the original scan.";
+        RaiseCommands();
+    }
+
+    public void SaveNew(string destinationPath) =>
+        SaveNewAsync(destinationPath).GetAwaiter().GetResult();
+
+    public async Task SaveNewAsync(string destinationPath)
+    {
+        var pages = VisiblePages.ToList();
+        if (pages.Count == 0)
             throw new InvalidOperationException("Scan at least one page first.");
-        ScannedPdfBuilder.SaveNew(_session.Pages, destinationPath);
+        await Task.Run(() => ScannedPdfBuilder.SaveNew(pages, destinationPath)).ConfigureAwait(true);
         SavedPath = destinationPath;
         PersistPreferences();
     }
 
-    public void InsertIntoOpenPdf(string? destinationPath = null)
+    public void InsertIntoOpenPdf(string? destinationPath = null) =>
+        InsertIntoOpenPdfAsync(destinationPath).GetAwaiter().GetResult();
+
+    public async Task InsertIntoOpenPdfAsync(string? destinationPath = null)
     {
-        if (_session.Count == 0)
+        var pages = VisiblePages.ToList();
+        if (pages.Count == 0)
             throw new InvalidOperationException("Scan at least one page first.");
         if (string.IsNullOrWhiteSpace(OpenPdfPath) || !File.Exists(OpenPdfPath))
             throw new InvalidOperationException("No open PDF to add pages to.");
 
         var index = ScannedPdfBuilder.ResolveInsertIndex(InsertMode, InsertAfterPage, OpenPdfPageCount);
-        if (index >= OpenPdfPageCount)
-            ScannedPdfBuilder.Append(_session.Pages, OpenPdfPath, destinationPath);
-        else
-            ScannedPdfBuilder.Insert(_session.Pages, OpenPdfPath, index, destinationPath);
+        var source = OpenPdfPath;
+        await Task.Run(() =>
+        {
+            if (index >= OpenPdfPageCount)
+                ScannedPdfBuilder.Append(pages, source, destinationPath);
+            else
+                ScannedPdfBuilder.Insert(pages, source, index, destinationPath);
+        }).ConfigureAwait(true);
 
         SavedPath = string.IsNullOrWhiteSpace(destinationPath) ? OpenPdfPath : destinationPath;
         PersistPreferences();
@@ -486,9 +563,25 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
-        _scanCts?.Cancel();
-        _scanCts?.Dispose();
-        _scanCts = null;
+        ReleaseCts();
+        _store.Dispose();
+    }
+
+    private void ReleaseCts()
+    {
+        var cts = Interlocked.Exchange(ref _scanCts, null);
+        if (cts == null)
+            return;
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // already cancelled/disposed
+        }
+
+        cts.Dispose();
     }
 
     private ScanSettings CurrentSettings(ScanDeviceInfo device)
@@ -530,25 +623,14 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
                 return;
         }
 
-        var processed = ScanPagePipeline.Process(raw, PipelineOptions());
+        var processed = Keep(_store.Persist(ScanPagePipeline.Process(raw, PipelineOptions())));
         lock (_gate)
         {
-            if (processed == null)
-            {
-                _blankDropped++;
-                var dropped = _blankDropped;
-                PostToUi(() =>
-                {
-                    Status = dropped == 1
-                        ? "Dropped a blank page."
-                        : $"Dropped {dropped} blank pages.";
-                });
-                return;
-            }
-
             if (processed.Id != raw.Id)
                 _seen.Add(processed.Id);
             _session.Add(processed);
+            if (processed.HiddenAsBlank)
+                _blankDropped++;
         }
 
         PostToUi(() =>
@@ -557,10 +639,19 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
                 return;
             Pages.Add(processed);
             SelectedIndex = Pages.Count - 1;
-            Status = $"Scanned page {Pages.Count}.";
+            Status = processed.HiddenAsBlank
+                ? ( _blankDropped == 1
+                    ? "Hidden a blank page. Restore it if that was a mark."
+                    : $"Hidden {_blankDropped} blank pages. Restore any that have marks.")
+                : $"Scanned page {VisibleCount}.";
             RaiseCommands();
         });
     }
+
+    private static ScannedPage Keep(ScannedPage page) => page;
+
+    private void RecountBlanks() =>
+        _blankDropped = _session.Pages.Count(p => p.HiddenAsBlank);
 
     private void PostToUi(Action action)
     {
@@ -572,11 +663,11 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     private string Summarize()
     {
-        var pages = _session.Count == 1 ? "1 page" : $"{_session.Count} pages";
+        var pages = VisibleCount == 1 ? "1 page" : $"{VisibleCount} pages";
         if (_blankDropped == 0)
             return $"{pages} ready. Add more, or save.";
-        var blanks = _blankDropped == 1 ? "1 blank page" : $"{_blankDropped} blank pages";
-        return $"{pages} ready ({blanks} dropped). Add more, or save.";
+        var blanks = _blankDropped == 1 ? "1 hidden as blank" : $"{_blankDropped} hidden as blank";
+        return $"{pages} ready ({blanks}). Restore any that have marks.";
     }
 
     private void ApplyPreferences(ScanPreferences prefs)
@@ -618,6 +709,7 @@ public sealed class ScanViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(CanEditSelected));
         OnPropertyChanged(nameof(CanDuplex));
         OnPropertyChanged(nameof(PageCount));
+        OnPropertyChanged(nameof(VisibleCount));
         OnPropertyChanged(nameof(HasOpenPdf));
     }
 

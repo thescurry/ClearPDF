@@ -28,6 +28,20 @@ public class ScanDeskewTests
     }
 
     [Fact]
+    public void Skewed_bar_the_other_way_is_straightened()
+    {
+        var aligned = BarPage(angle: 0);
+        var skewed = ScanRaster.Rotate(aligned, 80, 80, -8);
+        var estimated = ScanDeskew.EstimateAngle(skewed.Rgb, skewed.Width, skewed.Height);
+        Assert.InRange(estimated, -11, -5);
+
+        var straight = ScanDeskew.Straighten(skewed.Rgb, skewed.Width, skewed.Height);
+        Assert.InRange(straight.AngleDegrees, -11, -5);
+        var leftover = ScanDeskew.EstimateAngle(straight.Rgb, straight.Width, straight.Height);
+        Assert.InRange(leftover, -2.0, 2.0);
+    }
+
+    [Fact]
     public void Uniform_page_is_not_rotated()
     {
         var rgb = ScanBlankDetectorTests.Solid(48, 48, 200, 200, 200);

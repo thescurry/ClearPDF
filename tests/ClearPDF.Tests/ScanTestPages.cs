@@ -29,6 +29,8 @@ internal static class ScanTestPages
         // MockScanner clones pages with a new Id; the solid swatch still starts with the tag red.
         if (page.RasterRgb is { Length: >= 3 })
             return page.RasterRgb[0];
+        if (ScanPageStore.TryRead(page.RasterPath, out _, out _, out var rgb) && rgb.Length >= 3)
+            return rgb[0];
         return 0;
     }
 }

@@ -168,6 +168,10 @@
                                 Click="Trim_Click" Margin="0,0,0,6" ToolTip="Trim margins (T)"/>
                         <Button Content="Crop" Style="{StaticResource SecondaryButton}" Padding="10,5"
                                 Click="Crop_Click" Margin="0,0,0,6" ToolTip="Crop this page"/>
+                        <Button Content="Restore" Style="{StaticResource SecondaryButton}" Padding="10,5"
+                                Click="Restore_Click" Margin="0,0,0,6" ToolTip="Keep a page hidden as blank"/>
+                        <Button Content="Revert" Style="{StaticResource SecondaryButton}" Padding="10,5"
+                                Click="Revert_Click" Margin="0,0,0,6" ToolTip="Undo crop / straighten"/>
                         <Button Content="Delete" Style="{StaticResource SecondaryButton}" Padding="10,5"
                                 Click="Delete_Click" ToolTip="Remove page (Del)"/>
                     </StackPanel>

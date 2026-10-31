@@ -49,6 +49,11 @@ public sealed class MockScanner : IScanner
 
     public List<ScanProgress> ProgressReports { get; } = new();
 
+    /// <summary>Wait here before each page so tests can cancel or dispose mid-scan.</summary>
+    public TaskCompletionSource<bool>? PageHold { get; set; }
+
+    public TimeSpan PageDelay { get; set; }
+
     public static MockScanner HpEnvy7640() => new(new ScanDeviceInfo
     {
         Id = "mock-hp-envy-7640",
@@ -165,6 +170,11 @@ public sealed class MockScanner : IScanner
         var total = limit;
         for (var i = 0; i < limit; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (PageHold != null)
+                await PageHold.Task.WaitAsync(cancellationToken);
+            if (PageDelay > TimeSpan.Zero)
+                await Task.Delay(PageDelay, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (Error is { } kind && i >= ErrorAfterPages && ErrorAfterPages > 0)
                 throw new ScannerException(kind);

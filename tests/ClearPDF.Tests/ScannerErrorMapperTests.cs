@@ -7,7 +7,9 @@ public class ScannerErrorMapperTests
 {
     [Theory]
     [InlineData(ScannerErrorMapper.WiaPaperEmpty, ScanSource.Feeder, ScannerErrorKind.FeederEmpty)]
-    [InlineData(ScannerErrorMapper.WiaPaperProblem, ScanSource.Feeder, ScannerErrorKind.FeederEmpty)]
+    [InlineData(ScannerErrorMapper.WiaPaperProblem, ScanSource.Feeder, ScannerErrorKind.Misfeed)]
+    [InlineData(ScannerErrorMapper.WiaCoverOpen, ScanSource.Feeder, ScannerErrorKind.CoverOpen)]
+    [InlineData(ScannerErrorMapper.WiaCoverOpen, ScanSource.Flatbed, ScannerErrorKind.CoverOpen)]
     [InlineData(ScannerErrorMapper.WiaPaperEmpty, ScanSource.Flatbed, ScannerErrorKind.NoPaper)]
     [InlineData(ScannerErrorMapper.WiaBusy, ScanSource.Flatbed, ScannerErrorKind.DeviceBusy)]
     [InlineData(ScannerErrorMapper.WiaDeviceLocked, ScanSource.Feeder, ScannerErrorKind.DeviceBusy)]
@@ -26,6 +28,9 @@ public class ScannerErrorMapperTests
     {
         Assert.True(ScannerErrorMapper.IsEndOfFeeder(ScannerErrorMapper.WiaPaperEmpty));
         Assert.False(ScannerErrorMapper.IsEndOfFeeder(ScannerErrorMapper.WiaBusy));
+        Assert.False(ScannerErrorMapper.IsEndOfFeeder(ScannerErrorMapper.WiaPaperProblem));
+        Assert.False(ScannerErrorMapper.IsEndOfFeeder(ScannerErrorMapper.WiaPaperJam));
+        Assert.False(ScannerErrorMapper.IsEndOfFeeder(ScannerErrorMapper.WiaCoverOpen));
     }
 
     [Fact]

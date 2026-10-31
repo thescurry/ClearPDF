@@ -180,7 +180,8 @@ internal sealed class WiaScanner : IScanner, IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    var page = TransferPage(item, settings);
+                    var page = TransferPage(item, settings, pages.Count, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
                     pages.Add(page);
                     progress?.Report(new ScanProgress(
                         pages.Count, null, $"Scanned page {pages.Count}", page));
@@ -194,11 +195,15 @@ internal sealed class WiaScanner : IScanner, IDisposable
                     var unwrapped = WiaCom.Unwrap(ex);
                     if (unwrapped is OperationCanceledException)
                         throw;
-                    if (unwrapped is COMException com && ScannerErrorMapper.IsEndOfFeeder(com.ErrorCode))
-                    {
-                        if (pages.Count == 0)
-                            throw new ScannerException(ScannerErrorKind.FeederEmpty, inner: com);
+                    if (unwrapped is ScannerException scanner &&
+                        (scanner.Kind is ScannerErrorKind.FeederEmpty or ScannerErrorKind.NoPaper) &&
+                        pages.Count > 0)
                         break;
+                    if (unwrapped is COMException com)
+                    {
+                        var decision = WiaTransferPolicy.Decide(com.ErrorCode, settings.Source, pages.Count);
+                        if (decision.Action == WiaTransferAction.EndOfFeeder)
+                            break;
                     }
 
                     throw WiaCom.Wrap(ex, settings.Source);
@@ -296,28 +301,50 @@ internal sealed class WiaScanner : IScanner, IDisposable
             WiaCom.TrySetProperty(item.Properties, WiaCom.VerticalExtent, extentH.Value);
     }
 
-    private static ScannedPage TransferPage(dynamic item, ScanSettings settings)
+    private static ScannedPage TransferPage(
+        dynamic item, ScanSettings settings, int pagesCompleted, CancellationToken cancellationToken)
     {
         object? imageFile = null;
         try
         {
-            try
+            string?[] formats = { WiaCom.BmpFormat, WiaCom.JpegFormat, null };
+            Exception? last = null;
+            for (var i = 0; i < formats.Length; i++)
             {
-                imageFile = item.Transfer(WiaCom.BmpFormat);
-            }
-            catch (Exception)
-            {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    imageFile = item.Transfer(WiaCom.JpegFormat);
+                    imageFile = formats[i] == null ? item.Transfer() : item.Transfer(formats[i]);
+                    last = null;
+                    break;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    imageFile = item.Transfer();
+                    last = ex;
+                    var hr = WiaCom.HResultOf(ex);
+                    var decision = WiaTransferPolicy.Decide(hr, settings.Source, pagesCompleted);
+                    if (decision.Action == WiaTransferAction.RetryFormat && i < formats.Length - 1)
+                        continue;
+                    if (decision.Action == WiaTransferAction.EndOfFeeder)
+                        throw new ScannerException(
+                            settings.Source == ScanSource.Feeder
+                                ? ScannerErrorKind.FeederEmpty
+                                : ScannerErrorKind.NoPaper,
+                            inner: WiaCom.Unwrap(ex));
+                    throw WiaCom.Wrap(ex, settings.Source);
                 }
             }
 
+            if (imageFile == null)
+            {
+                throw last != null
+                    ? WiaCom.Wrap(last, settings.Source)
+                    : new ScannerException(ScannerErrorKind.Unknown, "The scanner returned no image.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
             byte[] bytes = WiaCom.ReadBinary(imageFile);
+            cancellationToken.ThrowIfCancellationRequested();
             if (bytes.Length == 0)
                 throw new ScannerException(ScannerErrorKind.Unknown, "The scanner returned an empty page.");
 
@@ -428,6 +455,9 @@ internal static class WiaCom
         return Activator.CreateInstance(type)
                ?? throw new ScannerException(ScannerErrorKind.Communication, "Could not start WIA.");
     }
+
+    public static int HResultOf(Exception ex) =>
+        Unwrap(ex) is COMException com ? com.ErrorCode : 0;
 
     public static Exception Unwrap(Exception ex)
     {
