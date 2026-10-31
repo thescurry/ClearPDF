@@ -57,6 +57,10 @@ public partial class MainWindow : Window
 
     private static readonly IBrush AccentBrush = new SolidColorBrush(Color.Parse("#5A7FA6"));
     private static readonly IBrush ThumbIdleBrush = new SolidColorBrush(Color.Parse("#CCCCCC"));
+    private static readonly FilePickerFileType PdfFileType = new("PDF files")
+    {
+        Patterns = new[] { "*.pdf" }
+    };
 
     public MainWindow()
     {
@@ -147,10 +151,7 @@ public partial class MainWindow : Window
         {
             Title = "Open PDF",
             AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("PDF files") { Patterns = new[] { "*.pdf" } }
-            }
+            FileTypeFilter = new[] { PdfFileType }
         });
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
             await OpenPathAsync(path);
@@ -942,10 +943,7 @@ public partial class MainWindow : Window
             Title = "Save As",
             SuggestedFileName = Path.GetFileName(_doc.FilePath),
             DefaultExtension = "pdf",
-            FileTypeChoices = new[]
-            {
-                new FilePickerFileType("PDF files") { Patterns = new[] { "*.pdf" } }
-            }
+            FileTypeChoices = new[] { PdfFileType }
         });
         var dest = file?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(dest))
@@ -975,10 +973,7 @@ public partial class MainWindow : Window
             Title = "Save pages as…",
             SuggestedFileName = PdfPageExtract.SuggestFileName(_doc.FilePath, pages),
             DefaultExtension = "pdf",
-            FileTypeChoices = new[]
-            {
-                new FilePickerFileType("PDF files") { Patterns = new[] { "*.pdf" } }
-            }
+            FileTypeChoices = new[] { PdfFileType }
         });
         var dest = file?.TryGetLocalPath();
         if (string.IsNullOrWhiteSpace(dest))
