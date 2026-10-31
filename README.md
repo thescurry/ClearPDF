@@ -2,11 +2,11 @@
 
 Simple local PDF reader for **Windows 10+**. WPF · .NET 8 · no ribbons, AI, or cloud.
 
-UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal.
+UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal, [scan dialog](docs/mocks/v13-scan-dialog.png).
 
 ## Download (Windows)
 
-Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)** (current: **v1.2.0**):
+Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPDF/releases)** (current: **v1.3.0**):
 
 1. Download `ClearPDF-Setup.exe`
 2. Run it (SmartScreen may show **Unknown publisher** once — More info → Run anyway; the build is unsigned)
@@ -24,6 +24,7 @@ Self-contained ~166 MB on disk after install. No .NET install required.
 | ClearPDF app code | MIT (see [LICENSE](LICENSE)) |
 | Docnet.Core | Apache-2.0 |
 | PDFium (native) | Apache-2.0 / BSD-style (Google PDFium) |
+| PDFsharp 6.2.4 (scan PDF build) | MIT (empira). Do **not** bump to 6.5+ (AGPL/commercial). |
 
 Passwords are used for **view unlock only** and are never stored.
 
@@ -63,6 +64,24 @@ ClearPDF.exe "C:\path\to\file.pdf"
 
 **Code QA smoke:** associate or “Open with” ClearPDF → double-click a PDF → document renders (not the empty Open screen). Drag-drop a PDF onto the window also works. Helper: `CommandLinePdfArgs` in Core (covered by `CommandLinePdfArgsTests`).
 
+## Scan to PDF (v1.3, Windows)
+
+**File → Scan…** on the empty window, the toolbar Scan icon, or **Ctrl+Shift+S**.
+
+Click **Scan**. Defaults are 300 DPI, color, auto document size. The last scanner and settings come back next time. Pages show up in the strip as they arrive — add more (flatbed loop or another feeder run), then save a new PDF or insert into the open file at the start, after a page, or at the end.
+
+Per page: rotate, drag to reorder, delete, rescan, crop, trim. **Drop blank pages** and **Auto-straighten** are on unless you turn them off. Duplex and feeder appear only when the device reports them.
+
+Keyboard in the dialog: **Space** scan, **R** rotate, **Del** delete, **T** trim, **Ctrl+↑/↓** move, **Ctrl+S** save, **Ctrl+I** insert, **Esc** stop / close.
+
+Windows uses **WIA 2.0** COM (`WIA.DeviceManager` / wiaaut.dll) on a background STA thread so the window stays usable. WinRT `Windows.Devices.Scanners` was not used: it needs CsWinRT, historically misses some WIA-only devices, and is weaker on feeder-empty / busy / jam HRESULTs.
+
+**TWAIN** is not bundled. WIA already covers the HP ENVY / LaserJet class this app targets; a TWAIN DSM would add native bits and a vendor UI we are trying not to show. `IScannerProvider` is the hook if a device only speaks TWAIN.
+
+**OCR / searchable PDF** is not bundled. There is no small, solid, offline library that fits this app (Tesseract + tessdata is a large native pack). Implement `IScanOcr` to add one later. The dialog shows the checkbox disabled with that reason.
+
+Linux `dotnet test` covers the Core mock scanner, `ScanViewModel`, blank/deskew/crop pipeline, and PDFsharp builder — not a live device. Hardware still to check: HP ENVY 7640 (flatbed) and HP Color LaserJet MFP M277dw (feeder). Without a scanner, the dialog falls back to two mock HP devices so you can click through the strip and save.
+
 ## PDFium native notes
 
 Docnet.Core needs **`pdfium.dll`** (and related natives) at runtime on Windows.
@@ -101,7 +120,7 @@ Helpers: `PdfRenderScale`, `PageRenderPlanner`, `PageRasterCache<T>` in Core (un
 
 ## Runnable tests without WPF
 
-UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
+UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`, plus **scan** types (`IScanner`, `ScanSession`, `ScannedPdfBuilder`, `MockScanner`). `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell. WIA itself is not exercised in `dotnet test`.
 
 ## v1 scope
 
@@ -114,6 +133,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Find next/prev (extracted text)
 - Print, Save As (copy file)
 - **v1.2 page-selection** (ship version **1.2.0**): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
+- **v1.3 Scan to PDF** (ship version **1.3.0**, Windows): **File → Scan…** / toolbar Scan. WIA 2.0 lists scanners; flatbed and feeder; color / grayscale / B&W; 150 / 200 / 300 DPI; thumbnail strip (reorder, rotate, delete, scan more); save as a new PDF or append to the open file (temp + atomic replace). Core scan types run in Linux tests via `MockScanner`.
 - Password prompt for encrypted PDFs (unlock for viewing only)
 - Error banner UI
 - Bookmarks/outline when the engine exposes them (stubbed TODO if Docnet has no outline API)
@@ -140,6 +160,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 | Reader | `docs/mocks/chrome-arc-reader.png` (v1.1) / `02-reader.png` | `ReaderView` + one icon toolbar + status bar |
 | v1.2 thumbs / extract chrome | `docs/mocks/v12-01-multiselect.png`, `v12-02-context-menu.png`, `v12-03-save-as-choice.png` | Thumbnail multi-select, 2-line thumb menu, Save As one-liner |
 | Password | `docs/mocks/03-password.png` | `Views/PasswordDialog.xaml` |
+| Scan to PDF | (v1.3, no mock PNG) | `Views/ScanDialog.xaml` + `Scanning/WiaScannerProvider.cs` |
 
 Accent: `#5A7FA6` (one muted blue — Open CTA pill, selected thumb, find hit). Canvas: `#F1F2F7` (sampled from `chrome-arc-reader.png` so the white page pops). Toolbar: one ~36px icon strip (Segoe MDL2), labels on hover. No ribbons.
 
@@ -158,13 +179,14 @@ ClearPDF/
   docs/mocks/
   docs/qa.md             # Graphics/Steve standing QA gates
   docs/test-output.txt   # captured `dotnet test` on Linux
-  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
+  src/ClearPDF.Core/     # net8.0 — helpers plus Scanning/ (IScanner, ScanSession, ScannedPdfBuilder, MockScanner, PDFsharp 6.2.4)
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)
     ClearPDF.csproj
     App.xaml
     MainWindow.xaml
     Models/              BookmarkItem
+    Scanning/            WIA 2.0 provider (Windows)
     Services/            Docnet + stub, AppLog (local file logs)
-    Views/               PasswordDialog
+    Views/               PasswordDialog, ScanDialog
   tests/ClearPDF.Tests/  # net8.0 → Core only
 ```

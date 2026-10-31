@@ -1,6 +1,16 @@
 # Graphics / Steve QA gates
 
-Standing visual checks for polish. Version **1.2.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.2.0`), and tag `v1.2.0`.
+Standing visual checks for polish. Version **1.3.0** is set together in csproj / AssemblyInfo, Inno `AppVersion`, About (`ClearPDF 1.3.0`). Do not tag a release from this note unless shipping.
+
+## v1.3 Scan to PDF (Windows hardware)
+
+Gate: **File → Scan…** (empty window), toolbar Scan (reader), **Ctrl+Shift+S**.
+
+- Dialog: remembered scanner, source (flatbed / feeder), color, DPI 150/200/300, one-click Scan, live thumbnails, Add more pages, Save as new PDF / Add to open PDF (start / after page / end).
+- Per page: rotate, drag-reorder, delete, rescan, crop, trim, revert. Suspected blanks stay in the strip as “Hidden as blank” with Restore. Toggles: drop blanks, auto-straighten, trim margins.
+- Live check (not covered by `dotnet test`): **HP ENVY 7640** flatbed loop; **HP Color LaserJet MFP M277dw** feeder + duplex. Empty feeder, paper jam, device-busy, and Stop/cancel between pages should speak plainly, not crash.
+- Insert / save must leave a valid file (temp + replace); Save as new must not overwrite the open source path unless the user picks it.
+- Without a scanner: WIA list is empty → friendly “No scanner found”. On machines where WIA is missing, mock HP devices appear so the strip can still be exercised.
 
 ## Empty Recent (release blocker)
 

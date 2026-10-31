@@ -25,6 +25,8 @@ SOFTWARE.
 Third-party notice
 ------------------
 PDF rendering uses Docnet.Core, which binds to PDFium (Apache License 2.0 /
-BSD-style contributions from Google and others). See README.md for engine
-license details. ClearPDF's MIT license applies to this application's own code
-only; PDFium / Docnet retain their own licenses.
+BSD-style contributions from Google and others). Scan-to-PDF builds files with
+PDFsharp 6.2.4 (MIT, empira Software GmbH). Do not replace that package with
+PDFsharp 6.5 or later (AGPL / commercial dual license). See README.md for
+engine license details. ClearPDF's MIT license applies to this application's
+own code only; PDFium / Docnet / PDFsharp retain their own licenses.
