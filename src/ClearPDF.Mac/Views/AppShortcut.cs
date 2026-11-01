@@ -6,6 +6,7 @@ namespace ClearPDF.Mac.Views;
 /// </summary>
 internal enum AppShortcut
 {
+    Open,
     FindOpen,
     FindNext,
     FindPrevious,

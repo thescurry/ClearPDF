@@ -8,8 +8,6 @@ namespace ClearPDF.Mac.Views;
 
 public partial class MainWindow
 {
-    private bool _suppressFindKeyUp;
-
     private FindSession? Find => _tabs.Current?.Find;
 
     private void FindToggle_Click(object? sender, RoutedEventArgs e) =>
@@ -20,9 +18,6 @@ public partial class MainWindow
 
     private void FindPrev_Click(object? sender, RoutedEventArgs e) =>
         ApplyFindAction(FindAction.Previous);
-
-    private void FindBox_LostFocus(object? sender, RoutedEventArgs e) =>
-        _suppressFindKeyUp = false;
 
     private void FindBox_KeyDown(object? sender, KeyEventArgs e)
     {
@@ -55,13 +50,7 @@ public partial class MainWindow
             return;
 
         if (fromKeyUp)
-        {
-            _suppressFindKeyUp = false;
             return;
-        }
-
-        if (enter)
-            _suppressFindKeyUp = true;
 
         ApplyFindAction(action);
         e.Handled = true;

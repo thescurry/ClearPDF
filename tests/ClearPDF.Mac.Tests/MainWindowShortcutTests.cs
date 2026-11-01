@@ -74,6 +74,21 @@ public class MainWindowShortcutTests
     }
 
     [AvaloniaFact]
+    public void CmdO_on_Window_KeyDown_does_not_open()
+    {
+        WithReader(window =>
+        {
+            window.OpenDialogOverride = () => Task.CompletedTask;
+
+            window.DriveWindowKeyDown(MainWindow.NewKey(Key.O, KeyModifiers.Meta));
+            Assert.Equal(0, window.OpenDialogCount);
+
+            window.ExecuteShortcut(AppShortcut.Open);
+            Assert.Equal(1, window.OpenDialogCount);
+        });
+    }
+
+    [AvaloniaFact]
     public void Ime_candidate_confirm_Enter_on_KeyUp_does_not_search()
     {
         WithReader(window =>
@@ -90,27 +105,6 @@ public class MainWindowShortcutTests
     }
 
     [AvaloniaFact]
-    public void Suppress_flag_resets_on_focus_change_and_later_Enter_still_searches()
-    {
-        WithReader(window =>
-        {
-            window.ExecuteShortcut(AppShortcut.FindOpen);
-            SetFindText(window, "hello");
-            window.DriveFindBoxKey(MainWindow.NewKey(Key.Enter), fromKeyUp: false);
-            Assert.True(window.SuppressFindKeyUp);
-            window.ExecuteShortcut(AppShortcut.FindNext);
-            Assert.Equal(1, window.FindIndex);
-
-            window.BlurFindBoxForTests();
-            Assert.False(window.SuppressFindKeyUp);
-
-            window.DriveFindBoxKey(MainWindow.NewKey(Key.Enter), fromKeyUp: false);
-            Assert.Equal(0, window.FindIndex);
-            Assert.Equal("1 / 2", window.FindStatusText);
-        });
-    }
-
-    [AvaloniaFact]
     public void Keypad_Enter_commits_find()
     {
         WithReader(window =>
@@ -119,7 +113,7 @@ public class MainWindowShortcutTests
             SetFindText(window, "hello");
 
             window.DriveFindBoxKey(
-                MainWindow.NewKey(Key.Enter, physical: PhysicalKey.NumPadEnter),
+                MainWindow.NewKey(Key.None, physical: PhysicalKey.NumPadEnter),
                 fromKeyUp: false);
 
             Assert.Equal(0, window.FindIndex);

@@ -68,7 +68,6 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, Window_Drop);
         FindBox.AddHandler(InputElement.KeyDownEvent, FindBox_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         FindBox.AddHandler(InputElement.KeyUpEvent, FindBox_KeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
-        FindBox.LostFocus += FindBox_LostFocus;
         InstallNativeMenu();
         Opened += OnOpened;
         Closed += (_, _) =>
@@ -149,6 +148,13 @@ public partial class MainWindow : Window
 
     private async Task OpenWithDialog()
     {
+        OpenDialogCount++;
+        if (OpenDialogOverride != null)
+        {
+            await OpenDialogOverride();
+            return;
+        }
+
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Open PDF",
@@ -899,7 +905,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void Window_KeyDown(object? sender, KeyEventArgs e)
+    private void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Handled)
             return;
@@ -916,6 +922,8 @@ public partial class MainWindow : Window
         var keyName = e.Key.ToString();
 
         // Menu-owned shortcuts: NativeMenu is the only apply path.
+        if (command && e.Key == Key.O)
+            return;
         if (TabKeys.Resolve(keyName, shift, command) != TabAction.None)
             return;
         var findAction = FindKeys.Resolve(keyName, shift, command);
@@ -930,22 +938,9 @@ public partial class MainWindow : Window
         }
 
         if (FocusManager?.GetFocusedElement() is TextBox)
-        {
-            if (command && e.Key == Key.O)
-            {
-                await OpenWithDialog();
-                e.Handled = true;
-            }
-
             return;
-        }
 
-        if (command && e.Key == Key.O)
-        {
-            await OpenWithDialog();
-            e.Handled = true;
-        }
-        else if (e.Key is Key.PageDown or Key.Right)
+        if (e.Key is Key.PageDown or Key.Right)
         {
             GoToPage(_currentPage + 1);
             e.Handled = true;

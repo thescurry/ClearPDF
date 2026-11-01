@@ -5,6 +5,9 @@ namespace ClearPDF.Mac.Views;
 
 public partial class MainWindow
 {
+    internal int OpenDialogCount { get; private set; }
+    internal Func<Task>? OpenDialogOverride { get; set; }
+
     internal void OpenDocumentForTests(IPdfDocument doc, string path) =>
         AttachNewDocument(doc, path);
 
@@ -14,18 +17,11 @@ public partial class MainWindow
     internal void DriveFindBoxKey(KeyEventArgs e, bool fromKeyUp) =>
         HandleFindBoxKey(e, fromKeyUp);
 
-    internal void BlurFindBoxForTests()
-    {
-        _suppressFindKeyUp = false;
-        PageScroller.Focus();
-    }
-
     internal bool FindIsOpen => Find?.IsOpen == true;
     internal int FindIndex => Find?.CurrentIndex ?? -1;
     internal string FindStatusText => Find?.StatusText ?? string.Empty;
     internal int TabCount => _tabs.Count;
     internal string? CurrentTabTitle => _tabs.Current?.Title;
-    internal bool SuppressFindKeyUp => _suppressFindKeyUp;
 
     internal static KeyEventArgs NewKey(
         Key key,

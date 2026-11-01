@@ -57,16 +57,16 @@ public class DocumentPathTests
         {
             File.CreateSymbolicLink(link, real);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             TryCleanup(dir);
-            return;
+            Skip("Could not create symlink: " + ex.Message);
         }
 
         try
         {
             if (!File.Exists(link))
-                return;
+                Skip("Created symlink is not visible as a file.");
             Assert.True(DocumentPath.Same(real, link));
         }
         finally
@@ -74,6 +74,10 @@ public class DocumentPathTests
             TryCleanup(dir);
         }
     }
+
+    // xUnit 2.9 reports this prefix as Skipped, not Passed or Failed.
+    private static void Skip(string reason) =>
+        throw new Exception("$XunitDynamicSkip$" + reason);
 
     private static void TryCleanup(string dir)
     {

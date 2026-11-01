@@ -39,7 +39,7 @@ public partial class MainWindow
         {
             Menu = new NativeMenu
             {
-                Item("Open…", new KeyGesture(Key.O, KeyModifiers.Meta), (_, _) => _ = OpenWithDialog()),
+                Item("Open…", new KeyGesture(Key.O, KeyModifiers.Meta), (_, _) => ExecuteShortcut(AppShortcut.Open)),
                 Item("Close", new KeyGesture(Key.W, KeyModifiers.Meta), (_, _) => ExecuteShortcut(AppShortcut.CloseTab))
             }
         };
@@ -79,6 +79,9 @@ public partial class MainWindow
     {
         switch (shortcut)
         {
+            case AppShortcut.Open:
+                _ = OpenWithDialog();
+                return;
             case AppShortcut.FindOpen:
                 ApplyFindAction(FindAction.Open);
                 return;
