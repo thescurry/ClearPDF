@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using ClearPDF.Helpers;
 
 namespace ClearPDF.Mac.Views;
 
@@ -32,7 +33,7 @@ public partial class PasswordDialog : Window
 
     private void PasswordBox_KeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter)
+        if (FindKeys.IsEnter(e.Key.ToString()))
             Accept();
         else if (e.Key == Key.Escape)
             Close(false);

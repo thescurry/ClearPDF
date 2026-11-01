@@ -16,6 +16,14 @@
             </MenuItem>
         </Menu>
 
+        <Border x:Name="TabStripBorder" DockPanel.Dock="Top"
+                Background="#F1F2F7" BorderBrush="#D8D9DE" BorderThickness="0,0,0,1"
+                IsVisible="False">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="TabStrip" Orientation="Horizontal" Margin="8,0,8,0" MinHeight="30"/>
+            </ScrollViewer>
+        </Border>
+
         <Border x:Name="ToolbarBorder" DockPanel.Dock="Top"
                 Background="#FFFFFF" BorderBrush="#D8D9DE" BorderThickness="0,0,0,1"
                 IsVisible="False">
@@ -35,7 +43,7 @@
                     <Button x:Name="FindButton" Classes="toolbar" Content="Find" Click="FindToggle_Click" ToolTip.Tip="Find (⌘F)"/>
                     <StackPanel x:Name="FindPanel" Orientation="Horizontal" IsVisible="False" Margin="10,0,0,0"
                                 VerticalAlignment="Center" Spacing="4">
-                        <TextBox x:Name="FindBox" Width="148" Height="24" Padding="6,1" KeyDown="FindBox_KeyDown"/>
+                        <TextBox x:Name="FindBox" Width="148" Height="24" Padding="6,1"/>
                         <Button Content="Prev" Classes="toolbar" Click="FindPrev_Click"/>
                         <Button Content="Next" Classes="toolbar" Click="FindNext_Click"/>
                         <TextBlock x:Name="FindStatus" VerticalAlignment="Center" FontSize="11" Foreground="#8A8A92"/>

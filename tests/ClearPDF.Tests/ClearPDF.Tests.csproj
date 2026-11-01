@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <None Include="fixtures\solid-red-72.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fixtures\hello-clearpdf.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Put Docnet natives next to testhost so DllImport("pdfium") resolves. -->

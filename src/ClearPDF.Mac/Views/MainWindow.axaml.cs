@@ -18,13 +18,11 @@ public partial class MainWindow : Window
 {
     private readonly IPdfDocumentFactory _pdfFactory = new DocnetPdfDocumentFactory();
     private readonly RecentFilesService _recents = new();
-    private readonly PageBitmapCache _bitmapCache = new();
+    private PageBitmapCache _bitmapCache = new();
 
     private IPdfDocument? _doc;
     private double _zoom = ZoomHelper.DefaultZoom;
     private int _currentPage;
-    private IReadOnlyList<FindHelper.Hit> _findHits = Array.Empty<FindHelper.Hit>();
-    private int _findIndex = -1;
     private string[] _pageTexts = Array.Empty<string>();
     private double _renderedZoom = ZoomHelper.DefaultZoom;
     private DispatcherTimer? _zoomRenderTimer;
@@ -68,6 +66,9 @@ public partial class MainWindow : Window
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, Window_DragOver);
         AddHandler(DragDrop.DropEvent, Window_Drop);
+        FindBox.AddHandler(InputElement.KeyDownEvent, FindBox_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
+        FindBox.AddHandler(InputElement.KeyUpEvent, FindBox_KeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
+        InstallNativeMenu();
         Opened += OnOpened;
         Closed += (_, _) =>
         {
@@ -75,7 +76,7 @@ public partial class MainWindow : Window
             _scrollRenderTimer?.Stop();
             CancelRenders();
             CancelThumbRenders();
-            _doc?.Dispose();
+            DisposeAllTabs();
             _bitmapCache.Clear();
         };
     }
@@ -160,13 +161,16 @@ public partial class MainWindow : Window
     private async Task OpenPathAsync(string path, string? password = null)
     {
         HideError();
+        if (TryActivateExistingTab(path))
+            return;
+
         string? pwd = password;
         while (true)
         {
             try
             {
                 var doc = _pdfFactory.Open(path, pwd);
-                SetDocument(doc, path);
+                AttachNewDocument(doc, path);
                 return;
             }
             catch (PdfPasswordException ex)
@@ -192,56 +196,6 @@ public partial class MainWindow : Window
         var dlg = new PasswordDialog();
         var ok = await dlg.ShowDialog<bool>(this);
         return ok ? dlg.Password : null;
-    }
-
-    private void SetDocument(IPdfDocument doc, string path)
-    {
-        _zoomRenderTimer?.Stop();
-        _scrollRenderTimer?.Stop();
-        CancelRenders();
-        CancelThumbRenders();
-        _bitmapCache.Clear();
-        _findHitPage = -1;
-        _highlightedThumb = -1;
-        _selectedThumbs.Clear();
-        HideSaveAsChoice();
-        InvalidatePageTops();
-        _doc?.Dispose();
-        _doc = doc;
-        _zoom = ZoomHelper.DefaultZoom;
-        _currentPage = 0;
-        _findHits = Array.Empty<FindHelper.Hit>();
-        _findIndex = -1;
-        _thumbsBuilt = false;
-        _selection = PageSelection.Click(0, doc.PageCount);
-        FindPanel.IsVisible = false;
-
-        _pageTexts = new string[doc.PageCount];
-        for (var i = 0; i < doc.PageCount; i++)
-            _pageTexts[i] = doc.GetPageText(i);
-
-        _recents.Add(path);
-        RefreshRecentList();
-
-        EmptyView.IsVisible = false;
-        ReaderView.IsVisible = true;
-        AppMenu.IsVisible = false;
-        ToolbarBorder.IsVisible = true;
-        StatusBar.IsVisible = true;
-        Title = $"ClearPDF — {Path.GetFileName(path)}";
-
-        if (!DocnetPdfDocumentFactory.AreNativesAvailable)
-        {
-            ShowError("PDFium natives not loaded — showing stub pages. On macOS, publish with -r osx-x64 so Docnet.Core can ship pdfium.dylib.");
-        }
-
-        PageHost.RenderTransform = null;
-        _renderedZoom = _zoom;
-        BuildPageShells();
-        BuildThumbnailShells();
-        UpdateStatus();
-        SchedulePageRenders(includePreviews: true);
-        ScheduleThumbFills();
     }
 
     private void BuildPageShells()
@@ -815,77 +769,6 @@ public partial class MainWindow : Window
             padding: ScrollerPadding));
     }
 
-    private void FindToggle_Click(object? sender, RoutedEventArgs e)
-    {
-        FindPanel.IsVisible = !FindPanel.IsVisible;
-        if (FindPanel.IsVisible)
-            FindBox.Focus();
-    }
-
-    private void FindBox_KeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            RunFind(reset: true);
-            FindNext_Click(sender, e);
-        }
-    }
-
-    private void RunFind(bool reset)
-    {
-        _findHits = FindHelper.FindAll(_pageTexts, FindBox.Text ?? string.Empty);
-        if (reset)
-            _findIndex = -1;
-        FindStatus.Text = _findHits.Count == 0 ? "No matches" : $"{_findHits.Count} matches";
-        if (_findHits.Count == 0)
-            ApplyFindHitChrome();
-    }
-
-    private void FindNext_Click(object? sender, RoutedEventArgs e)
-    {
-        RunFind(reset: false);
-        _findIndex = FindHelper.NextIndex(_findHits.Count, _findIndex);
-        JumpToHit();
-    }
-
-    private void FindPrev_Click(object? sender, RoutedEventArgs e)
-    {
-        RunFind(reset: false);
-        _findIndex = FindHelper.PrevIndex(_findHits.Count, _findIndex);
-        JumpToHit();
-    }
-
-    private void JumpToHit()
-    {
-        if (_findIndex < 0 || _findIndex >= _findHits.Count)
-            return;
-        var hit = _findHits[_findIndex];
-        FindStatus.Text = $"{_findIndex + 1} / {_findHits.Count}";
-        ApplyFindHitChrome();
-        GoToPage(hit.PageIndex);
-    }
-
-    private void ApplyFindHitChrome()
-    {
-        var page = FindHelper.CurrentHitPage(_findHits, _findIndex);
-        if (_findHitPage == page)
-            return;
-
-        if (_findHitPage >= 0 &&
-            _findHitPage < PageHost.Children.Count &&
-            PageHost.Children[_findHitPage] is Border oldBorder)
-        {
-            oldBorder.BorderBrush = Brushes.Transparent;
-        }
-
-        _findHitPage = page;
-        if (page >= 0 &&
-            page < PageHost.Children.Count &&
-            PageHost.Children[page] is Border border)
-        {
-            border.BorderBrush = AccentBrush;
-        }
-    }
 
     private async void SaveAs_Click(object? sender, RoutedEventArgs e)
     {
@@ -1017,6 +900,9 @@ public partial class MainWindow : Window
 
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Handled)
+            return;
+
         if (e.Key == Key.Escape && SaveAsChoiceOverlay.IsVisible)
         {
             HideSaveAsChoice();
@@ -1024,30 +910,40 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (FocusManager?.GetFocusedElement() is TextBox && e.Key is not (Key.Escape))
+        var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+        var command = IsCommand(e);
+        var keyName = e.Key.ToString();
+
+        var tabAction = TabKeys.Resolve(keyName, shift, command);
+        if (tabAction != TabAction.None)
         {
-            if (IsCommand(e) && e.Key == Key.O)
+            ApplyTabAction(tabAction);
+            e.Handled = true;
+            return;
+        }
+
+        var findAction = FindKeys.Resolve(keyName, shift, command);
+        if (findAction != FindAction.None)
+        {
+            ApplyFindAction(findAction);
+            e.Handled = true;
+            return;
+        }
+
+        if (FocusManager?.GetFocusedElement() is TextBox)
+        {
+            if (command && e.Key == Key.O)
             {
                 await OpenWithDialog();
-                e.Handled = true;
-            }
-            else if (IsCommand(e) && e.Key == Key.F)
-            {
-                FindToggle_Click(sender, e);
                 e.Handled = true;
             }
 
             return;
         }
 
-        if (IsCommand(e) && e.Key == Key.O)
+        if (command && e.Key == Key.O)
         {
             await OpenWithDialog();
-            e.Handled = true;
-        }
-        else if (IsCommand(e) && e.Key == Key.F)
-        {
-            FindToggle_Click(sender, e);
             e.Handled = true;
         }
         else if (e.Key is Key.PageDown or Key.Right)

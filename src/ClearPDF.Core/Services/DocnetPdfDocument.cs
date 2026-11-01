@@ -109,7 +109,13 @@ internal sealed class DocnetPdfDocument : IPdfDocument
         {
             EnsureNotDisposed();
             using var page = _reader.GetPageReader(pageIndex);
-            return page.GetText() ?? string.Empty;
+            var text = page.GetText() ?? string.Empty;
+            if (text.Length > 0)
+                return text;
+
+            // Some pdfium builds return empty GetText() while character boxes exist.
+            var chars = page.GetCharacters();
+            return chars == null ? string.Empty : string.Concat(chars.Select(c => c.Char));
         }
     }
 

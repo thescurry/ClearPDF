@@ -16,7 +16,7 @@ Self-contained ~166 MB on disk after install. No .NET install required.
 
 ## Download (Intel macOS, unsigned)
 
-CI uploads an unsigned `ClearPDF.app` zip (`ClearPDF-macos-x64-app`) on each pull request. Printing is not included on Mac.
+CI uploads an unsigned `ClearPDF.app` zip (`ClearPDF-macos-x64-app`) on each pull request. Printing is not included on Mac. The Mac reader has document tabs and Find (⌘F / Return / ⌘G).
 
 **First launch (Gatekeeper, Sequoia 15):** the app is unsigned. On Sequoia, right-click → Open no longer bypasses the block.
 
@@ -122,7 +122,7 @@ Helpers: `PdfRenderScale`, `PageRenderPlanner`, `PageRasterCache<T>` in Core (un
 
 ## Runnable tests without WPF
 
-UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
+UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `FindSession`, `FindKeys`, `DocumentTabSet`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
 
 ## v1 scope
 
@@ -132,7 +132,8 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Render pages (page hero + left thumbnails)
 - Scroll / PageUp·PageDown / Home·End
 - Zoom in/out, fit width, fit page
-- Find next/prev (extracted text)
+- Find next/prev (extracted text). On Mac: ⌘F opens the find box, Enter / Shift+Enter and ⌘G / Shift+⌘G step hits, Esc closes. Avalonia reports the Return key as `Return`, not `Enter`.
+- Document tabs on Mac: each opened PDF gets a tab; opening the same file switches to it; ⌘W closes the current tab; ⌘⇧[ / ⌘⇧] switch tabs. Find state is per tab. Windows is still one document at a time.
 - Print, Save As (copy file)
 - **v1.2 page-selection** (ship version **1.2.0**): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
 - Password prompt for encrypted PDFs (unlock for viewing only)
@@ -179,7 +180,7 @@ ClearPDF/
   docs/mocks/
   docs/qa.md             # Graphics/Steve standing QA gates
   docs/test-output.txt   # captured `dotnet test` on Linux
-  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
+  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, FindSession, DocumentTabSet, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)
     ClearPDF.csproj
     App.xaml
