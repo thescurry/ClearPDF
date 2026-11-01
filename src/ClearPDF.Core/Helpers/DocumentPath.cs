@@ -3,16 +3,32 @@ namespace ClearPDF.Helpers;
 /// <summary>
 /// Path identity for open-document tabs. macOS often aliases
 /// <c>/var/...</c> and <c>/private/var/...</c> as the same file.
+/// POSIX absolute paths are compared lexically so Windows
+/// <see cref="Path.GetFullPath(string)"/> cannot map them onto
+/// different drive roots (that broke installer CI).
 /// </summary>
 public static class DocumentPath
 {
     public static string Normalize(string path)
     {
-        var full = Path.GetFullPath(path);
-        const string prefix = "/private";
-        if (full.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
-            return full[prefix.Length..];
-        return full;
+        var unix = path.Replace('\\', '/');
+        if (unix.StartsWith("/private/", StringComparison.OrdinalIgnoreCase))
+            unix = unix["/private".Length..];
+
+        if (unix.StartsWith('/'))
+            return unix;
+
+        try
+        {
+            var full = Path.GetFullPath(path).Replace('\\', '/');
+            if (full.StartsWith("/private/", StringComparison.OrdinalIgnoreCase))
+                return full["/private".Length..];
+            return full;
+        }
+        catch
+        {
+            return unix;
+        }
     }
 
     public static bool Same(string? left, string? right)
