@@ -22,7 +22,9 @@ public partial class App : Application
 
         AppLog.LogAppStart();
 
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && desktop.MainWindow is null
+            && !HeadlessTestHost.Enabled)
             desktop.MainWindow = new MainWindow();
 
         base.OnFrameworkInitializationCompleted();

@@ -37,6 +37,10 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ClearPDF.Mac.Tests" />
+  </ItemGroup>
+
   <!-- Copy osx-x64 pdfium next to the exe so DocLib finds it without RID probing quirks. -->
   <Target Name="CopyPdfiumNative" AfterTargets="Build">
     <PropertyGroup>

@@ -68,6 +68,7 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, Window_Drop);
         FindBox.AddHandler(InputElement.KeyDownEvent, FindBox_KeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
         FindBox.AddHandler(InputElement.KeyUpEvent, FindBox_KeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
+        FindBox.LostFocus += FindBox_LostFocus;
         InstallNativeMenu();
         Opened += OnOpened;
         Closed += (_, _) =>
@@ -914,18 +915,16 @@ public partial class MainWindow : Window
         var command = IsCommand(e);
         var keyName = e.Key.ToString();
 
-        var tabAction = TabKeys.Resolve(keyName, shift, command);
-        if (tabAction != TabAction.None)
-        {
-            ApplyTabAction(tabAction);
-            e.Handled = true;
+        // Menu-owned shortcuts: NativeMenu is the only apply path.
+        if (TabKeys.Resolve(keyName, shift, command) != TabAction.None)
             return;
-        }
-
         var findAction = FindKeys.Resolve(keyName, shift, command);
-        if (findAction != FindAction.None)
+        if (FindKeys.IsMenuOwned(findAction))
+            return;
+
+        if (findAction == FindAction.Close && Find is { IsOpen: true })
         {
-            ApplyFindAction(findAction);
+            ApplyFindAction(FindAction.Close);
             e.Handled = true;
             return;
         }

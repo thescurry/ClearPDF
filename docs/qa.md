@@ -45,6 +45,8 @@ Gate: find must work from the keyboard, not only the toolbar buttons.
 
 Core lock: `FindSession` / `FindKeys` / `FindSessionTests`. PDFium text: `PdfPageTextTests` (runs when natives load).
 
+**Root cause (corrected):** Avalonia 11 maps Return and Enter to the same `Key` value (`6`). The original miss was not Return-vs-Enter. A focused Find `TextBox` on macOS can omit KeyDown when IME confirms a candidate; the window handler also used to ignore Enter while a TextBox had focus. r3 then stacked NativeMenu + `Window_KeyDown` + Find-box Cmd+F/G, so one keypress could toggle Find closed, skip a match, or close two tabs. Each menu shortcut now applies only in `ExecuteShortcut`. Find box owns Enter/Esc. IME candidate-confirm KeyUp does not search. Headless lock: `ClearPDF.Mac.Tests`.
+
 ## macOS document tabs
 
 Gate: a second PDF must not replace the first.

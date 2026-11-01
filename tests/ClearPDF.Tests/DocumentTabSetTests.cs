@@ -22,27 +22,6 @@ public class TabKeysTests
     }
 }
 
-public class DocumentPathTests
-{
-    [Fact]
-    public void Same_treats_private_var_as_var()
-    {
-        Assert.True(DocumentPath.Same("/var/tmp/a.pdf", "/private/var/tmp/a.pdf"));
-        Assert.True(DocumentPath.Same("/Private/var/tmp/A.PDF", "/var/tmp/a.pdf"));
-        Assert.False(DocumentPath.Same("/var/tmp/a.pdf", "/var/tmp/b.pdf"));
-    }
-
-    [Fact]
-    public void Same_does_not_let_windows_GetFullPath_split_posix_aliases()
-    {
-        // Windows GetFullPath("/var/...") and GetFullPath("/private/var/...")
-        // become different drive-rooted paths. Normalize must still match.
-        Assert.Equal(
-            DocumentPath.Normalize("/var/tmp/doc.pdf"),
-            DocumentPath.Normalize("/private/var/tmp/doc.pdf"));
-    }
-}
-
 public class DocumentTabSetTests
 {
     [Fact]

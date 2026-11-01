@@ -40,17 +40,17 @@ public partial class MainWindow
             Menu = new NativeMenu
             {
                 Item("Open…", new KeyGesture(Key.O, KeyModifiers.Meta), (_, _) => _ = OpenWithDialog()),
-                Item("Close", new KeyGesture(Key.W, KeyModifiers.Meta), (_, _) => ApplyTabAction(TabAction.CloseCurrent))
+                Item("Close", new KeyGesture(Key.W, KeyModifiers.Meta), (_, _) => ExecuteShortcut(AppShortcut.CloseTab))
             }
         };
         var edit = new NativeMenuItem("Edit")
         {
             Menu = new NativeMenu
             {
-                Item("Find…", new KeyGesture(Key.F, KeyModifiers.Meta), (_, _) => ApplyFindAction(FindAction.Toggle)),
-                Item("Find Next", new KeyGesture(Key.G, KeyModifiers.Meta), (_, _) => ApplyFindAction(FindAction.Next)),
+                Item("Find…", new KeyGesture(Key.F, KeyModifiers.Meta), (_, _) => ExecuteShortcut(AppShortcut.FindOpen)),
+                Item("Find Next", new KeyGesture(Key.G, KeyModifiers.Meta), (_, _) => ExecuteShortcut(AppShortcut.FindNext)),
                 Item("Find Previous", new KeyGesture(Key.G, KeyModifiers.Meta | KeyModifiers.Shift),
-                    (_, _) => ApplyFindAction(FindAction.Previous))
+                    (_, _) => ExecuteShortcut(AppShortcut.FindPrevious))
             }
         };
         var window = new NativeMenuItem("Window")
@@ -58,9 +58,9 @@ public partial class MainWindow
             Menu = new NativeMenu
             {
                 Item("Show Previous Tab", new KeyGesture(Key.OemOpenBrackets, KeyModifiers.Meta | KeyModifiers.Shift),
-                    (_, _) => ApplyTabAction(TabAction.Previous)),
+                    (_, _) => ExecuteShortcut(AppShortcut.PreviousTab)),
                 Item("Show Next Tab", new KeyGesture(Key.OemCloseBrackets, KeyModifiers.Meta | KeyModifiers.Shift),
-                    (_, _) => ApplyTabAction(TabAction.Next))
+                    (_, _) => ExecuteShortcut(AppShortcut.NextTab))
             }
         };
 
@@ -71,26 +71,35 @@ public partial class MainWindow
         NativeMenu.SetMenu(this, menu);
     }
 
-    private void ApplyTabAction(TabAction action)
+    /// <summary>
+    /// Single owner for menu-bar shortcuts. Window_KeyDown and the Find box
+    /// must not apply these again.
+    /// </summary>
+    internal void ExecuteShortcut(AppShortcut shortcut)
     {
-        switch (action)
+        switch (shortcut)
         {
-            case TabAction.None:
+            case AppShortcut.FindOpen:
+                ApplyFindAction(FindAction.Open);
                 return;
-            case TabAction.CloseCurrent:
-                if (_tabs.Count == 0)
-                    Close();
-                else
+            case AppShortcut.FindNext:
+                ApplyFindAction(FindAction.Next);
+                return;
+            case AppShortcut.FindPrevious:
+                ApplyFindAction(FindAction.Previous);
+                return;
+            case AppShortcut.CloseTab:
+                if (_tabs.Count > 0)
                     CloseCurrentTab();
                 return;
-            case TabAction.Previous:
+            case AppShortcut.PreviousTab:
                 SwitchTab(() => _tabs.SelectPrevious());
                 return;
-            case TabAction.Next:
+            case AppShortcut.NextTab:
                 SwitchTab(() => _tabs.SelectNext());
                 return;
             default:
-                throw new ArgumentOutOfRangeException(nameof(action), action, null);
+                throw new ArgumentOutOfRangeException(nameof(shortcut), shortcut, null);
         }
     }
 

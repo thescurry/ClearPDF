@@ -12,7 +12,7 @@ public class FindKeysTests
     [InlineData("Return", true, false, FindAction.Previous)]
     [InlineData("G", false, true, FindAction.Next)]
     [InlineData("G", true, true, FindAction.Previous)]
-    [InlineData("F", false, true, FindAction.Toggle)]
+    [InlineData("F", false, true, FindAction.Open)]
     [InlineData("Escape", false, false, FindAction.Close)]
     [InlineData("Esc", false, false, FindAction.Close)]
     [InlineData("A", false, false, FindAction.None)]
@@ -23,10 +23,11 @@ public class FindKeysTests
     }
 
     [Fact]
-    public void Return_is_treated_as_Enter_because_Avalonia_macOS_reports_Return()
+    public void Enter_Return_and_NumPadEnter_all_commit()
     {
-        Assert.Equal(FindKeys.Resolve("Enter", false, false), FindKeys.Resolve("Return", false, false));
-        Assert.Equal(FindKeys.Resolve("Enter", true, false), FindKeys.Resolve("Return", true, false));
+        Assert.Equal(FindAction.CommitNext, FindKeys.Resolve("Enter", false, false));
+        Assert.Equal(FindAction.CommitNext, FindKeys.Resolve("Return", false, false));
+        Assert.Equal(FindAction.CommitNext, FindKeys.Resolve("NumPadEnter", false, false));
     }
 }
 

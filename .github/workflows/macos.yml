@@ -23,6 +23,9 @@ jobs:
       - name: Test Core (includes fixture render)
         run: dotnet test tests/ClearPDF.Tests/ClearPDF.Tests.csproj -c Release --nologo
 
+      - name: Test Mac headless (find / tabs)
+        run: dotnet test tests/ClearPDF.Mac.Tests/ClearPDF.Mac.Tests.csproj -c Release --nologo
+
       - name: Publish, bundle, and zip unsigned ClearPDF.app
         run: |
           chmod +x packaging/macos/*.sh

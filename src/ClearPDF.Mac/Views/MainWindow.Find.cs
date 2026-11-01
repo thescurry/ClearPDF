@@ -21,6 +21,9 @@ public partial class MainWindow
     private void FindPrev_Click(object? sender, RoutedEventArgs e) =>
         ApplyFindAction(FindAction.Previous);
 
+    private void FindBox_LostFocus(object? sender, RoutedEventArgs e) =>
+        _suppressFindKeyUp = false;
+
     private void FindBox_KeyDown(object? sender, KeyEventArgs e)
     {
         HandleFindBoxKey(e, fromKeyUp: false);
@@ -31,33 +34,42 @@ public partial class MainWindow
         HandleFindBoxKey(e, fromKeyUp: true);
     }
 
+    /// <summary>
+    /// Find box owns Enter / Shift+Enter / Esc only. ⌘F / ⌘G belong to the
+    /// NativeMenu path so they cannot fire twice.
+    /// KeyUp never commits: IME candidate-confirm delivers Enter on KeyUp
+    /// without a matching KeyDown.
+    /// </summary>
     private void HandleFindBoxKey(KeyEventArgs e, bool fromKeyUp)
     {
+        if (IsCommand(e))
+            return;
+
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        var command = IsCommand(e);
-        var action = FindKeys.Resolve(e.Key.ToString(), shift, command);
+        var enter = IsFindEnter(e);
+        var action = enter
+            ? FindKeys.Resolve("Enter", shift, command: false)
+            : FindKeys.Resolve(e.Key.ToString(), shift, command: false);
+
         if (action == FindAction.None)
             return;
 
         if (fromKeyUp)
         {
-            if (_suppressFindKeyUp)
-            {
-                _suppressFindKeyUp = false;
-                return;
-            }
+            _suppressFindKeyUp = false;
+            return;
+        }
 
-            if (action is not (FindAction.CommitNext or FindAction.Previous or FindAction.Close))
-                return;
-        }
-        else if (FindKeys.IsEnter(e.Key.ToString()))
-        {
+        if (enter)
             _suppressFindKeyUp = true;
-        }
 
         ApplyFindAction(action);
         e.Handled = true;
     }
+
+    private static bool IsFindEnter(KeyEventArgs e) =>
+        FindKeys.IsEnter(e.Key.ToString())
+        || e.PhysicalKey is PhysicalKey.Enter or PhysicalKey.NumPadEnter;
 
     private void ApplyFindAction(FindAction action)
     {
@@ -74,6 +86,13 @@ public partial class MainWindow
                     FindBox.Focus();
                 else
                     ApplyFindHitChrome();
+                return;
+            case FindAction.Open:
+                if (_tabs.Current == null)
+                    return;
+                Find!.Open();
+                SyncFindUi();
+                FindBox.Focus();
                 return;
             case FindAction.CommitNext:
                 if (Find is not { IsOpen: true })

@@ -1,13 +1,15 @@
 namespace ClearPDF.Helpers;
 
 /// <summary>
-/// Find box / window gestures. Avalonia on macOS reports the Return key as
-/// <c>Return</c>, not <c>Enter</c> — both must commit the search.
+/// Find box / window gestures. Avalonia maps Return and Enter to the same
+/// <c>Key</c> value; keypad Enter is a distinct <c>PhysicalKey</c>.
+/// ⌘F opens (does not toggle) so a second delivery cannot close the box.
 /// </summary>
 public enum FindAction
 {
     None,
     Toggle,
+    Open,
     CommitNext,
     Next,
     Previous,
@@ -32,7 +34,7 @@ public static class FindKeys
             return shift ? FindAction.Previous : FindAction.Next;
 
         if (IsKey(key, "F") && command)
-            return FindAction.Toggle;
+            return FindAction.Open;
 
         if (IsKey(key, "Escape") || IsKey(key, "Esc"))
             return FindAction.Close;
@@ -40,8 +42,11 @@ public static class FindKeys
         return FindAction.None;
     }
 
+    public static bool IsMenuOwned(FindAction action) =>
+        action is FindAction.Open or FindAction.Next or FindAction.Previous;
+
     public static bool IsEnter(string? key) =>
-        IsKey(key, "Enter") || IsKey(key, "Return");
+        IsKey(key, "Enter") || IsKey(key, "Return") || IsKey(key, "NumPadEnter");
 
     private static bool IsKey(string? key, string name) =>
         string.Equals(key, name, StringComparison.OrdinalIgnoreCase);

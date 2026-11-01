@@ -132,7 +132,7 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Render pages (page hero + left thumbnails)
 - Scroll / PageUp·PageDown / Home·End
 - Zoom in/out, fit width, fit page
-- Find next/prev (extracted text). On Mac: ⌘F opens the find box, Enter / Shift+Enter and ⌘G / Shift+⌘G step hits, Esc closes. Avalonia reports the Return key as `Return`, not `Enter`.
+- Find next/prev (extracted text). On Mac: ⌘F opens the find box (NativeMenu is the only shortcut path), Enter / Shift+Enter and ⌘G / Shift+⌘G step hits, Esc closes. Avalonia maps Return and Enter to the same `Key` value; the original Mac miss was IME KeyDown plus stacked handlers, not Return-vs-Enter.
 - Document tabs on Mac: each opened PDF gets a tab; opening the same file switches to it; ⌘W closes the current tab; ⌘⇧[ / ⌘⇧] switch tabs. Find state is per tab. Windows is still one document at a time.
 - Print, Save As (copy file)
 - **v1.2 page-selection** (ship version **1.2.0**): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
