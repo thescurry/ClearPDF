@@ -45,7 +45,7 @@ public class DocumentPathTests
         Assert.False(DocumentPath.Same(@"C:\Docs\A.pdf", @"C:\Docs\B.pdf"));
     }
 
-    [Fact]
+    [SkippableFact]
     public void Same_resolves_symlink_when_file_exists()
     {
         var dir = Path.Combine(Path.GetTempPath(), "ClearPDF-path-" + Guid.NewGuid().ToString("N"));
@@ -60,13 +60,12 @@ public class DocumentPathTests
         catch (Exception ex)
         {
             TryCleanup(dir);
-            Skip("Could not create symlink: " + ex.Message);
+            throw new SkipException("Could not create symlink: " + ex.Message);
         }
 
         try
         {
-            if (!File.Exists(link))
-                Skip("Created symlink is not visible as a file.");
+            Skip.IfNot(File.Exists(link), "Created symlink is not visible as a file.");
             Assert.True(DocumentPath.Same(real, link));
         }
         finally
@@ -74,10 +73,6 @@ public class DocumentPathTests
             TryCleanup(dir);
         }
     }
-
-    // xUnit 2.9 reports this prefix as Skipped, not Passed or Failed.
-    private static void Skip(string reason) =>
-        throw new Exception("$XunitDynamicSkip$" + reason);
 
     private static void TryCleanup(string dir)
     {
