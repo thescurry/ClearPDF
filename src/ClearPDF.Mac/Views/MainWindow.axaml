@@ -84,19 +84,37 @@
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="520">
                     <TextBlock Text="Open a PDF" FontSize="22" Foreground="#2A2A30"
                                HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                    <Button Content="Open..." Classes="hero" Click="Open_Click" Margin="0,0,0,20"/>
+                    <Button x:Name="OpenHeroButton" Content="Open..." Classes="hero" Click="Open_Click" Margin="0,0,0,20"/>
                     <TextBlock Text="Recent" FontSize="11" Foreground="#8A8A92"
                                HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                    <ItemsControl x:Name="RecentList">
+                    <ItemsControl x:Name="RecentList" HorizontalAlignment="Stretch">
+                        <ItemsControl.Styles>
+                            <Style Selector="ContentPresenter">
+                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            </Style>
+                        </ItemsControl.Styles>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2" ColumnDefinitions="*,Auto">
-                                    <Button Grid.Column="0" Content="{Binding DisplayName}"
-                                            Classes="recent" Tag="{Binding Path}"
-                                            Click="RecentItem_Click"/>
+                                <Grid Margin="0,2" Width="520" HorizontalAlignment="Stretch" ColumnDefinitions="*,200">
+                                    <Button Grid.Column="0"
+                                            Classes="recent"
+                                            Tag="{Binding Path}"
+                                            Click="RecentItem_Click"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   TextAlignment="Left"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   TextWrapping="NoWrap"/>
+                                    </Button>
                                     <TextBlock Grid.Column="1" Text="{Binding RelativeTime}"
+                                               TextTrimming="None"
+                                               TextWrapping="NoWrap"
                                                Foreground="#8A8A92" FontSize="12"
-                                               Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                               Margin="16,0,0,0"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Right"/>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

@@ -17,7 +17,7 @@ namespace ClearPDF.Mac.Views;
 public partial class MainWindow : Window
 {
     private readonly IPdfDocumentFactory _pdfFactory = new DocnetPdfDocumentFactory();
-    private readonly RecentFilesService _recents = new();
+    private readonly RecentFilesService _recents;
     private PageBitmapCache _bitmapCache = new();
 
     private IPdfDocument? _doc;
@@ -62,6 +62,7 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        _recents = RecentsOverride ?? new RecentFilesService();
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, Window_DragOver);
@@ -828,14 +829,7 @@ public partial class MainWindow : Window
         if (_doc == null)
             return;
 
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save As",
-            SuggestedFileName = Path.GetFileName(_doc.FilePath),
-            DefaultExtension = "pdf",
-            FileTypeChoices = new[] { PdfFileType }
-        });
-        var dest = file?.TryGetLocalPath();
+        var dest = await PickSavePath("Save As", Path.GetFileName(_doc.FilePath));
         if (string.IsNullOrWhiteSpace(dest))
             return;
 
@@ -858,14 +852,9 @@ public partial class MainWindow : Window
         if (pages.Count == 0)
             return;
 
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save pages as…",
-            SuggestedFileName = PdfPageExtract.SuggestFileName(_doc.FilePath, pages),
-            DefaultExtension = "pdf",
-            FileTypeChoices = new[] { PdfFileType }
-        });
-        var dest = file?.TryGetLocalPath();
+        var dest = await PickSavePath(
+            "Save pages as…",
+            PdfPageExtract.SuggestFileName(_doc.FilePath, pages));
         if (string.IsNullOrWhiteSpace(dest))
             return;
 
@@ -877,6 +866,21 @@ public partial class MainWindow : Window
         {
             ShowError($"Save pages as… failed: {ex.Message}");
         }
+    }
+
+    private async Task<string?> PickSavePath(string title, string suggestedFileName)
+    {
+        if (!string.IsNullOrWhiteSpace(SaveAsPathOverride))
+            return SaveAsPathOverride;
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = "pdf",
+            FileTypeChoices = new[] { PdfFileType }
+        });
+        return file?.TryGetLocalPath();
     }
 
     private void PageScroller_ScrollChanged(object? sender, ScrollChangedEventArgs e)

@@ -31,6 +31,10 @@ internal sealed class FakePdfDocument : IPdfDocument
 
     public void ExtractPages(IReadOnlyList<int> pageIndices0, string destPath)
     {
+        if (File.Exists(FilePath))
+            File.Copy(FilePath, destPath, overwrite: true);
+        else
+            File.WriteAllText(destPath, "%PDF-1.4\n");
     }
 
     public void Dispose() => DisposeCount++;

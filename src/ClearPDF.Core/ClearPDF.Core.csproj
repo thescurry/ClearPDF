@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ClearPDF.Tests" />
+    <InternalsVisibleTo Include="ClearPDF.Mac" />
+    <InternalsVisibleTo Include="ClearPDF.Mac.Tests" />
   </ItemGroup>
 
 </Project>

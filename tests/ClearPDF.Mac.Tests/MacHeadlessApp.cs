@@ -10,6 +10,10 @@ public class MacHeadlessApp
     {
         HeadlessTestHost.Enabled = true;
         return AppBuilder.Configure<App>()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions());
+            .UseSkia()
+            .UseHeadless(new AvaloniaHeadlessPlatformOptions
+            {
+                UseHeadlessDrawing = false
+            });
     }
 }
