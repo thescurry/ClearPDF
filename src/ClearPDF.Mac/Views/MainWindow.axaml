@@ -1,0 +1,171 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ClearPDF.Mac.Views.MainWindow"
+        Title="ClearPDF"
+        Width="1100" Height="720"
+        MinWidth="720" MinHeight="480"
+        Icon="/Assets/app-icon.png"
+        Background="#F1F2F7"
+        KeyDown="Window_KeyDown">
+    <DockPanel>
+        <Menu x:Name="AppMenu" DockPanel.Dock="Top"
+              Background="#FFFFFF" BorderBrush="#D8D9DE" BorderThickness="0,0,0,1" Padding="6,1">
+            <MenuItem Header="_About">
+                <MenuItem Header="ClearPDF 1.2.0" Click="About_Click"/>
+                <MenuItem Header="Duck waffles" Click="DuckWaffles_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <Border x:Name="TabStripBorder" DockPanel.Dock="Top"
+                Background="#F1F2F7" BorderBrush="#D8D9DE" BorderThickness="0,0,0,1"
+                IsVisible="False">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="TabStrip" Orientation="Horizontal" Margin="8,0,8,0" MinHeight="30"/>
+            </ScrollViewer>
+        </Border>
+
+        <Border x:Name="ToolbarBorder" DockPanel.Dock="Top"
+                Background="#FFFFFF" BorderBrush="#D8D9DE" BorderThickness="0,0,0,1"
+                IsVisible="False">
+            <DockPanel LastChildFill="False" Margin="8,0">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="2">
+                    <Button Classes="toolbar" Content="Open" Click="Open_Click" ToolTip.Tip="Open (⌘O)"/>
+                    <Button x:Name="SaveAsButton" Classes="toolbar" Content="Save As" Click="SaveAs_Click" ToolTip.Tip="Save As"/>
+                    <Button x:Name="SavePagesAsButton" Classes="toolbar" Content="Save pages" Click="SavePagesAs_Click" ToolTip.Tip="Save pages as…"/>
+                    <Border Width="1" Background="#E4E4E8" Margin="6,8" Height="16"/>
+                    <Button x:Name="ZoomOutButton" Classes="toolbar" Content="−" Click="ZoomOut_Click" ToolTip.Tip="Zoom out"/>
+                    <Button x:Name="ZoomLabel" Classes="toolbar" Content="100%" Click="ZoomReset_Click"
+                            ToolTip.Tip="Reset to 100%" MinWidth="40"/>
+                    <Button x:Name="ZoomInButton" Classes="toolbar" Content="+" Click="ZoomIn_Click" ToolTip.Tip="Zoom in"/>
+                    <Border Width="1" Background="#E4E4E8" Margin="6,8" Height="16"/>
+                    <Button x:Name="FitWidthButton" Classes="toolbar" Content="Fit width" Click="FitWidth_Click"/>
+                    <Button x:Name="FitPageButton" Classes="toolbar" Content="Fit page" Click="FitPage_Click"/>
+                    <Button x:Name="FindButton" Classes="toolbar" Content="Find" Click="FindToggle_Click" ToolTip.Tip="Find (⌘F)"/>
+                    <StackPanel x:Name="FindPanel" Orientation="Horizontal" IsVisible="False" Margin="10,0,0,0"
+                                VerticalAlignment="Center" Spacing="4">
+                        <TextBox x:Name="FindBox" Width="148" Height="24" Padding="6,1"/>
+                        <Button Content="Prev" Classes="toolbar" Click="FindPrev_Click"/>
+                        <Button Content="Next" Classes="toolbar" Click="FindNext_Click"/>
+                        <TextBlock x:Name="FindStatus" VerticalAlignment="Center" FontSize="11" Foreground="#8A8A92"/>
+                    </StackPanel>
+                </StackPanel>
+                <Menu DockPanel.Dock="Right" Background="Transparent" BorderThickness="0" VerticalAlignment="Center">
+                    <MenuItem Header="⋯" ToolTip.Tip="About">
+                        <MenuItem Header="Save pages as…" Click="SavePagesAs_Click"/>
+                        <MenuItem Header="Duck waffles" Click="DuckWaffles_Click"/>
+                    </MenuItem>
+                </Menu>
+            </DockPanel>
+        </Border>
+
+        <Border x:Name="StatusBar" DockPanel.Dock="Bottom"
+                Background="#F1F2F7" BorderBrush="#D8D9DE" BorderThickness="0,1,0,0"
+                Padding="16,2" IsVisible="False">
+            <Grid>
+                <TextBlock x:Name="PageStatusText" Text="1 / 1" FontSize="12" Foreground="#222222"
+                           HorizontalAlignment="Left"/>
+                <TextBlock x:Name="ZoomStatusText" Text="100%" FontSize="12" Foreground="#222222"
+                           HorizontalAlignment="Right"/>
+            </Grid>
+        </Border>
+
+        <Border x:Name="ErrorBanner" DockPanel.Dock="Top" Background="#FDECEA"
+                BorderBrush="#F5C2C0" BorderThickness="0,0,0,1" Padding="12,8"
+                IsVisible="False">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Dismiss" Classes="toolbar" Click="DismissError_Click"/>
+                <TextBlock x:Name="ErrorBannerText" TextWrapping="Wrap" Foreground="#8A1F11"
+                           VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <Grid>
+            <Grid x:Name="EmptyView" Background="#F1F2F7">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="520">
+                    <TextBlock Text="Open a PDF" FontSize="22" Foreground="#2A2A30"
+                               HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <Button x:Name="OpenHeroButton" Content="Open..." Classes="hero" Click="Open_Click" Margin="0,0,0,20"/>
+                    <TextBlock Text="Recent" FontSize="11" Foreground="#8A8A92"
+                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                    <ItemsControl x:Name="RecentList" HorizontalAlignment="Stretch">
+                        <ItemsControl.Styles>
+                            <Style Selector="ContentPresenter">
+                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            </Style>
+                        </ItemsControl.Styles>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2" Width="520" HorizontalAlignment="Stretch" ColumnDefinitions="*,200">
+                                    <Button Grid.Column="0"
+                                            Classes="recent"
+                                            Tag="{Binding Path}"
+                                            Click="RecentItem_Click"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Left">
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   TextAlignment="Left"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   TextWrapping="NoWrap"/>
+                                    </Button>
+                                    <TextBlock Grid.Column="1" Text="{Binding RelativeTime}"
+                                               TextTrimming="None"
+                                               TextWrapping="NoWrap"
+                                               Foreground="#8A8A92" FontSize="12"
+                                               Margin="16,0,0,0"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Right"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock x:Name="NoRecentText" Text="No recent files" Foreground="#8A8A92"
+                               FontSize="12" IsVisible="False" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid x:Name="ReaderView" IsVisible="False" ColumnDefinitions="140,*">
+                <Border Grid.Column="0" Background="#F4F5F8" BorderBrush="#D8D9DE" BorderThickness="0,0,1,0">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Pages" FontSize="11" Foreground="#8A8A92"
+                                   Margin="12,10,12,6"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel x:Name="ThumbnailList" Margin="4,0,4,4"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+                <ScrollViewer x:Name="PageScroller" Grid.Column="1"
+                              Background="#F1F2F7"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              Padding="28"
+                              ScrollChanged="PageScroller_ScrollChanged">
+                    <StackPanel x:Name="PageHost" HorizontalAlignment="Center"/>
+                </ScrollViewer>
+            </Grid>
+
+            <Grid x:Name="SaveAsChoiceOverlay" IsVisible="False">
+                <Border Background="#40000000" PointerPressed="SaveAsChoiceDim_PointerPressed"/>
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Background="White" CornerRadius="8" Padding="28,24"
+                        BorderBrush="#E0E0E0" BorderThickness="1" MinWidth="360"
+                        PointerPressed="SaveAsChoiceCard_PointerPressed">
+                    <StackPanel>
+                        <TextBlock Text="Save as" FontSize="18" FontWeight="SemiBold"
+                                   Foreground="#222222" Margin="0,0,0,18"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,22" Spacing="24">
+                            <RadioButton x:Name="SaveAsSelectedRadio" Content="Selected pages"
+                                         GroupName="SaveAsChoice" IsChecked="True"/>
+                            <RadioButton x:Name="SaveAsWholeRadio" Content="Entire document"
+                                         GroupName="SaveAsChoice"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                            <Button Content="Cancel" Classes="secondary" Click="SaveAsChoiceCancel_Click"/>
+                            <Button Content="Save" Classes="primary" Click="SaveAsChoiceSave_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

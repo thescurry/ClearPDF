@@ -4,7 +4,7 @@ using System.Text;
 namespace ClearPDF.Services;
 
 /// <summary>
-/// Simple local file logger under %LocalAppData%\ClearPDF\logs\.
+/// Simple local file logger under LocalApplicationData/ClearPDF/logs/.
 /// No network, no telemetry — short lines only.
 /// </summary>
 public static class AppLog
@@ -32,7 +32,7 @@ public static class AppLog
     /// <summary>Optional once-per-start version line.</summary>
     public static void LogAppStart()
     {
-        Info("ClearPDF " + global::ClearPDF.ProductInfo.Version + " start");
+        Info("ClearPDF " + ProductInfo.Version + " start");
     }
 
     private static void Write(string level, string message, Exception? ex)

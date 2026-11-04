@@ -1,10 +1,11 @@
-using System.Windows.Media.Imaging;
+using ClearPDF.Imaging;
 using ClearPDF.Models;
 
 namespace ClearPDF.Services;
 
 /// <summary>
 /// Abstraction over the PDF engine so UI can run even when natives are missing.
+/// Raster output is a platform-neutral BGRA32 buffer.
 /// </summary>
 public interface IPdfDocument : IDisposable
 {
@@ -14,10 +15,9 @@ public interface IPdfDocument : IDisposable
 
     /// <summary>
     /// Rasterize page at the given zoom (1.0 ≈ baseline sharpness).
-    /// Implementation may cap DPI on large pages. Safe to call off the UI thread;
-    /// returned bitmaps are frozen.
+    /// Implementation may cap DPI on large pages. Safe to call off the UI thread.
     /// </summary>
-    BitmapSource? RenderPage(int pageIndex, double zoom);
+    PdfPixelBuffer? RenderPage(int pageIndex, double zoom);
 
     /// <summary>Page size in PDF points (1/72").</summary>
     (double Width, double Height) GetPageSize(int pageIndex);

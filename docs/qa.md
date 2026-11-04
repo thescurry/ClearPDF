@@ -33,6 +33,32 @@ Manual repro that must stay green:
 3. Dismiss, right-click a **different** thumb → menu appears again. App stays up.
 4. Repeat after Ctrl/Shift multi-select, and after opening a second PDF.
 
+## macOS Find (Sequoia Intel)
+
+Gate: find must work from the keyboard, not only the toolbar buttons.
+
+1. Open a text PDF (not the solid-red fixture).
+2. ⌘F opens the find box and focuses it.
+3. Type a term and press Return/Enter — hits highlight, status shows `1 / N` (or `No matches`).
+4. Enter / ⌘G next, Shift+Enter / Shift+⌘G previous, wrapping across pages.
+5. Esc closes the box and clears the page accent.
+
+Core lock: `FindSession` / `FindKeys` / `FindSessionTests`. PDFium text: `PdfPageTextTests` (runs when natives load).
+
+**Root cause (corrected):** Avalonia 11 maps Return and Enter to the same `Key` value (`6`). The original miss was not Return-vs-Enter. A focused Find `TextBox` on macOS can omit KeyDown when IME confirms a candidate; the window handler also used to ignore Enter while a TextBox had focus. r3 then stacked NativeMenu + `Window_KeyDown` + Find-box Cmd+F/G, so one keypress could toggle Find closed, skip a match, or close two tabs. Each menu shortcut (including ⌘O) now applies only in `ExecuteShortcut`. Find box owns Enter/Esc. IME candidate-confirm KeyUp does not search. Keypad Enter is `PhysicalKey.NumPadEnter`. Headless lock: `ClearPDF.Mac.Tests`.
+
+## macOS document tabs
+
+Gate: a second PDF must not replace the first.
+
+1. Open A.pdf, then B.pdf — two tabs, B selected.
+2. Open A.pdf again — switches to A’s tab (no duplicate).
+3. Find a term on A, switch to B — A’s find state stays; B has its own.
+4. ⌘W closes the current tab. Last tab returns to the empty Open screen.
+5. ⌘⇧[ / ⌘⇧] wrap between tabs. Each tab has a close button.
+
+Core lock: `DocumentTabSet` / `TabKeys` / `DocumentTabSetTests`. Printing stays Windows-only.
+
 ## Deferred (later 1.1.x)
 
 Do **not** build the first-open Welcome card from `docs/mocks/chrome-arc-intro.png` in this pass. Empty-state stays Open + Recent. Track Welcome for a later 1.1.x note.

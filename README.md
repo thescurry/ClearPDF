@@ -1,6 +1,6 @@
 # ClearPDF
 
-Simple local PDF reader for **Windows 10+**. WPF · .NET 8 · no ribbons, AI, or cloud.
+Simple local PDF reader for **Windows 10+** and **Intel macOS 12+**. WPF / Avalonia · .NET 8 · no ribbons, AI, or cloud.
 
 UI mocks (locked look): [`docs/mocks/`](docs/mocks/) — empty/open, reader, password modal.
 
@@ -14,6 +14,18 @@ Grab the latest installer from **[Releases](https://github.com/thescurry/ClearPD
 
 Self-contained ~166 MB on disk after install. No .NET install required.
 
+## Download (Intel macOS, unsigned)
+
+CI uploads an unsigned `ClearPDF.app` zip (`ClearPDF-macos-x64-app`) on each pull request. Printing is not included on Mac. The Mac reader has document tabs and Find (⌘F / Return / ⌘G).
+
+**First launch (Gatekeeper, Sequoia 15):** the app is unsigned. On Sequoia, right-click → Open no longer bypasses the block.
+
+1. Unzip `ClearPDF-macos-x64.zip`
+2. Double-click `ClearPDF.app` once — macOS will refuse it
+3. Open **System Settings → Privacy & Security**, scroll to the message about ClearPDF, and click **Open Anyway**
+4. Confirm **Open** in the follow-up dialog
+
+If Finder still says the app is damaged, that is usually quarantine on the zip. In Terminal: `xattr -dr com.apple.quarantine ClearPDF.app`
 
 ## Engine choice
 
@@ -51,7 +63,15 @@ dotnet test
 # equivalent: dotnet test tests/ClearPDF.Tests/ClearPDF.Tests.csproj
 ```
 
-On non-Windows, the WPF project is a no-op stub so solution-level `dotnet test` only exercises `ClearPDF.Core`.
+On non-Windows, the WPF project is a no-op stub so solution-level `dotnet test` only exercises `ClearPDF.Core`. The Avalonia Mac project (`src/ClearPDF.Mac`) builds on any OS with the .NET 8 SDK.
+
+Intel Mac unsigned `.app` (self-contained osx-x64):
+
+```bash
+chmod +x packaging/macos/*.sh
+./packaging/macos/build-unsigned-app.sh
+# -> dist/macos/ClearPDF.app and dist/macos/ClearPDF-macos-x64.zip
+```
 
 ## Open from Explorer / command line
 
@@ -70,9 +90,10 @@ Docnet.Core needs **`pdfium.dll`** (and related natives) at runtime on Windows.
 1. `dotnet restore` / `dotnet build` pulls Docnet.Core. Depending on package version, natives may arrive via runtime assets or a companion package.
 2. If the app starts but shows the **stub page** banner (“PDFium natives not loaded”), copy `pdfium.dll` next to `ClearPDF.exe` (usually `src\ClearPDF\bin\Debug\net8.0-windows\`).
 3. Official / community native builds: [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) (pick the Windows x64 build matching your RID).
-4. On non-Windows scaffold machines, the factory **probes** for natives and falls back to `StubPdfDocument` so the UI shell still opens. Real render/find/print quality needs Win10 + natives.
+4. On Linux scaffold machines, the factory **probes** for natives and falls back to `StubPdfDocument` so the UI shell still opens. On Windows and macOS a missing `pdfium` library is an error (logged + shown), not gray stub pages. Printing remains Windows-only.
+5. On Intel macOS, Docnet ships `pdfium.dylib` under `runtimes/osx-x64/native/`. The bundle script copies it next to the executable inside `ClearPDF.app`.
 
-Factory entry point: `DocnetPdfDocumentFactory` in `src/ClearPDF/Services/DocnetPdfDocument.cs`.
+Factory entry point: `DocnetPdfDocumentFactory` in `src/ClearPDF.Core/Services/DocnetPdfDocument.cs`.
 
 ## Logging
 
@@ -101,7 +122,7 @@ Helpers: `PdfRenderScale`, `PageRenderPlanner`, `PageRasterCache<T>` in Core (un
 
 ## Runnable tests without WPF
 
-UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
+UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindHelper`, `FindSession`, `FindKeys`, `DocumentTabSet`, `RecentFilesService`, `PdfPageSize`, `RecentFileEntry`, `CommandLinePdfArgs`, `PageRenderPlanner`, `ScrollPagePicker`, `PageRasterCache<T>`, `PrintPageRange`, `PdfUnlockPolicy`, `PageSelection`, `PdfPageExtract`. `ClearPDF.Tests` references Core only, so `dotnet test` runs on Linux. The WPF app (`net8.0-windows`) references Core and still requires Windows to build/run the shell.
 
 ## v1 scope
 
@@ -111,7 +132,8 @@ UI-free logic lives in **`src/ClearPDF.Core/`** (`net8.0`): `ZoomHelper`, `FindH
 - Render pages (page hero + left thumbnails)
 - Scroll / PageUp·PageDown / Home·End
 - Zoom in/out, fit width, fit page
-- Find next/prev (extracted text)
+- Find next/prev (extracted text). On Mac: ⌘F opens the find box (NativeMenu is the only shortcut path), Enter / Shift+Enter and ⌘G / Shift+⌘G step hits, Esc closes. Avalonia maps Return and Enter to the same `Key` value; the original Mac miss was IME KeyDown plus stacked handlers, not Return-vs-Enter.
+- Document tabs on Mac: each opened PDF gets a tab; opening the same file switches to it; ⌘W closes the current tab; ⌘⇧[ / ⌘⇧] switch tabs. Find state is per tab. Windows is still one document at a time.
 - Print, Save As (copy file)
 - **v1.2 page-selection** (ship version **1.2.0**): multi-select thumbs (click / Ctrl-toggle / Shift-range; `#5A7FA6` border + check beside the gray page number); **Save pages as...** (toolbar, overflow, tiny 2-line thumb menu) writes a new PDF via Docnet Split; Print **Selection** is the current page when size is 1, the selected set when multi; Save As with a multi-select shows a quiet in-window card (**Selected pages (n) | Entire document**) — no title-bar modal. Steal: [`docs/mocks/v12-STEAL.md`](docs/mocks/v12-STEAL.md)
 - Password prompt for encrypted PDFs (unlock for viewing only)
@@ -158,7 +180,7 @@ ClearPDF/
   docs/mocks/
   docs/qa.md             # Graphics/Steve standing QA gates
   docs/test-output.txt   # captured `dotnet test` on Linux
-  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
+  src/ClearPDF.Core/     # net8.0 — ZoomHelper, FindHelper, FindSession, DocumentTabSet, RecentFiles, PdfPageSize, PdfRenderScale, CommandLinePdfArgs, PageRenderPlanner, PrintPageRange, PdfUnlockPolicy, PageSelection, PdfPageExtract
   src/ClearPDF/          # net8.0-windows WPF shell (refs Core)
     ClearPDF.csproj
     App.xaml

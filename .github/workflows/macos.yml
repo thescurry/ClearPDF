@@ -1,0 +1,118 @@
+name: macOS app
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos-app:
+    name: osx-x64 unsigned app
+    # Intel runner so the published x86_64 binary runs natively (not Rosetta).
+    # macos-13 retired Dec 2025; macos-15-intel is the current hosted Intel image.
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test Core (includes fixture render)
+        run: dotnet test tests/ClearPDF.Tests/ClearPDF.Tests.csproj -c Release --nologo
+
+      - name: Test Mac headless (find / tabs)
+        run: dotnet test tests/ClearPDF.Mac.Tests/ClearPDF.Mac.Tests.csproj -c Release --nologo
+
+      - name: Publish, bundle, and zip unsigned ClearPDF.app
+        run: |
+          chmod +x packaging/macos/*.sh
+          ./packaging/macos/build-unsigned-app.sh
+
+      - name: Assert app and pdfium are thin x86_64
+        run: ./packaging/macos/verify-x64.sh dist/macos/ClearPDF.app
+
+      - name: Smoke-render fixture with the x64 app
+        run: |
+          out="${RUNNER_TEMP}/solid-red.bgra"
+          dist/macos/ClearPDF.app/Contents/MacOS/ClearPDF \
+            --smoke-render tests/ClearPDF.Tests/fixtures/solid-red-72.pdf "$out"
+          test -s "$out"
+          python3 - <<PY
+          from pathlib import Path
+          data = Path("$out").read_bytes()
+          assert len(data) == 144 * 144 * 4, len(data)
+          i = (72 * 576) + (72 * 4)
+          assert data[i:i+4] == bytes([0, 0, 255, 255]), data[i:i+4]
+          print("smoke raster ok", len(data))
+          PY
+
+      - name: Upload unsigned .app zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClearPDF-macos-x64-app
+          path: dist/macos/ClearPDF-macos-x64.zip
+          if-no-files-found: error
+
+  macos-soak:
+    name: osx-x64 soak
+    runs-on: macos-15-intel
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test Core
+        run: dotnet test tests/ClearPDF.Tests/ClearPDF.Tests.csproj -c Release --nologo
+
+      - name: Soak (~3 min scroll/zoom/multi-select/Save As)
+        env:
+          CLEARPDF_SOAK_SECONDS: "180"
+          CLEARPDF_SOAK_MAX_MB: "768"
+          CLEARPDF_SOAK_OUT: ${{ runner.temp }}/soak-out
+        run: |
+          mkdir -p "$CLEARPDF_SOAK_OUT"
+          dotnet test tests/ClearPDF.Mac.Tests/ClearPDF.Mac.Tests.csproj -c Release --nologo --filter Category=Soak
+
+      - name: Fail if soak report is missing or over the memory limit
+        if: always()
+        env:
+          CLEARPDF_SOAK_OUT: ${{ runner.temp }}/soak-out
+        run: |
+          report="$CLEARPDF_SOAK_OUT/smoke-report.json"
+          test -s "$report"
+          python3 - <<'PY'
+          import json, os, sys
+          path = os.path.join(os.environ["CLEARPDF_SOAK_OUT"], "smoke-report.json")
+          report = json.loads(open(path).read())
+          shots = ["empty.png", "intro.png", "reader.png", "tabs.png"]
+          missing = [n for n in shots if not os.path.isfile(os.path.join(os.environ["CLEARPDF_SOAK_OUT"], n))]
+          if missing:
+              print("missing screenshots:", missing, file=sys.stderr)
+              sys.exit(1)
+          if not report.get("ok") or report.get("crashed"):
+              print(report, file=sys.stderr)
+              sys.exit(1)
+          if report.get("peakWorkingSetMb", 0) > report.get("maxWorkingSetMb", 768):
+              print("memory over limit", report, file=sys.stderr)
+              sys.exit(1)
+          print("soak ok", report.get("elapsedSec"), "s peak", report.get("peakWorkingSetMb"), "MB")
+          PY
+
+      - name: Upload soak report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClearPDF-macos-x64-soak
+          path: |
+            ${{ runner.temp }}/soak-out/smoke-report.json
+            ${{ runner.temp }}/soak-out/empty.png
+            ${{ runner.temp }}/soak-out/intro.png
+            ${{ runner.temp }}/soak-out/reader.png
+            ${{ runner.temp }}/soak-out/tabs.png
+          if-no-files-found: error

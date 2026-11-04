@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ClearPDF.Mac.Views.DuckWafflesWindow"
+        Title="Duck waffles"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False"
+        SystemDecorations="BorderOnly"
+        Background="Transparent"
+        Cursor="Hand"
+        PointerPressed="Window_PointerPressed"
+        KeyDown="Window_KeyDown">
+    <Border Background="White" BorderBrush="#B0B0B0" BorderThickness="1"
+            Margin="16" Padding="16" CornerRadius="2">
+        <Image Source="/Assets/duck-waffles.png"
+               Stretch="Uniform"
+               MaxWidth="640"
+               MaxHeight="400"/>
+    </Border>
+</Window>
